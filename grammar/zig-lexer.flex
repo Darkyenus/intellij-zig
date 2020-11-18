@@ -21,165 +21,165 @@ import org.ziglang.ZigTokenType;
 %eof}
 
 OTHERWISE=[^]
-WHITESPACE=[\s\n\f\r\t]+
-SEMICOLON=;
-COMMENT=\/\/[^\n]*
 
-NUM_SUFFIX=-?\d+
-P_SUFFIX=[pP]{NUM_SUFFIX}
-E_SUFFIX=[eE]{NUM_SUFFIX}
-HEXDIGIT=[a-fA-F0-9]
-HEX_NUM=0[xX]{HEXDIGIT}+({P_SUFFIX}|{E_SUFFIX})?
-OCT_NUM=0[oO][0-7]+
-BIN_NUM=0[bB][01]+
-DEC_NUM=\d+{E_SUFFIX}?
-INTEGER={HEX_NUM}|{OCT_NUM}|{BIN_NUM}|{DEC_NUM}
-FLOAT=((\d+\.\d*)|(\d*\.\d+))({E_SUFFIX}|{P_SUFFIX})?
+HEX=[0-9a-fA-F]
+CHAR_ESCAPE = ( "\x" {HEX} {HEX} | "\u\{" {HEX}+ "}" | "\\" [nr\\t'\"] )
+CHAR_CHAR = ({CHAR_ESCAPE} | [^\\'\n])
+STRING_CHAR = ({CHAR_ESCAPE} | [^\\\"\n])
+LINE_COMMENT = "//"[^\n]*
+LINE_STRING = ("\\" [^\n]* [ \n]*)+
 
-SYMBOL_CHAR=[a-zA-Z_] // TODO
-SYMBOL={SYMBOL_CHAR}({SYMBOL_CHAR}|\d)*
+CHAR_LITERAL = "'" {CHAR_CHAR} "'"
+INCOMPLETE_CHAR = "'" {CHAR_CHAR}
+FLOAT_LITERAL = (
+      "0x" {HEX}+ "." {HEX}+  ([pP] [-+]? {HEX}+)?
+    |      [0-9]+ "." [0-9]+  ([eE] [-+]? [0-9]+)?
+    | "0x" {HEX}+ "."?         [pP] [-+]? {HEX}+
+    |      [0-9]+ "."?         [eE] [-+]? [0-9]+
+)
+INTEGER_LITERAL = (
+      "0b" [01]+
+    | "0o" [0-7]+
+    | "0x" {HEX}+
+    |      [0-9]+
+)
+STRING_LITERAL_SINGLE = "\"" {STRING_CHAR}* "\""
+INCOMPLETE_STRING     = "\"" {STRING_CHAR}*
+IDENTIFIER = (// !keyword
+      [A-Za-z_] [A-Za-z0-9_]*
+    | "@\"" {STRING_CHAR}* "\""
+    )
+BUILTIN_IDENTIFIER = "@" [A-Za-z_][A-Za-z0-9_]*
 
-INCOMPLETE_STRING=c?\"([^\"\\\n]|\\[^])*
-STRING_LITERAL={INCOMPLETE_STRING}\"
-
-INCOMPLETE_CHAR='([^'\\\n]|\\[^])*
-CHAR_LITERAL={INCOMPLETE_CHAR}'
-
-%state AFTER_AT
+WHITESPACE = [ \n]+
+INVALID_WHITESPACE = [\s\f\r\t]+
 
 %%
 
-{COMMENT} { return ZigTokenType.LINE_COMMENT; }
-{WHITESPACE} { return TokenType.WHITE_SPACE; }
+{LINE_COMMENT}       { return ZigTokenType.LINE_COMMENT; }
+{WHITESPACE}         { return TokenType.WHITE_SPACE; }
+{INVALID_WHITESPACE} { return TokenType.BAD_CHARACTER; } // Is this distinction even necessary?
 
-<AFTER_AT> {SYMBOL} { yybegin(YYINITIAL); return ZigTypes.BUILTIN_FUNCTION; }
-<AFTER_AT> [^] { yybegin(YYINITIAL); return TokenType.BAD_CHARACTER; }
+"&"    { return ZigTypes.AMPERSAND; }
+"&="   { return ZigTypes.AMPERSANDEQUAL; }
+"*"    { return ZigTypes.ASTERISK; }
+"**"   { return ZigTypes.ASTERISK2; }
+"*="   { return ZigTypes.ASTERISKEQUAL; }
+"*%"   { return ZigTypes.ASTERISKPERCENT; }
+"*%="  { return ZigTypes.ASTERISKPERCENTEQUAL; }
+"^"    { return ZigTypes.CARET; }
+"^="   { return ZigTypes.CARETEQUAL; }
+":"    { return ZigTypes.COLON; }
+","    { return ZigTypes.COMMA; }
+"."    { return ZigTypes.DOT; }
+".."   { return ZigTypes.DOT2; }
+"..."  { return ZigTypes.DOT3; }
+".*"   { return ZigTypes.DOTASTERISK; }
+".?"   { return ZigTypes.DOTQUESTIONMARK; }
+"="    { return ZigTypes.EQUAL; }
+"=="   { return ZigTypes.EQUALEQUAL; }
+"=>"   { return ZigTypes.EQUALRARROW; }
+"!"    { return ZigTypes.EXCLAMATIONMARK; }
+"!="   { return ZigTypes.EXCLAMATIONMARKEQUAL; }
+"<"    { return ZigTypes.LARROW; }
+"<<"   { return ZigTypes.LARROW2; }
+"<<="  { return ZigTypes.LARROW2EQUAL; }
+"<="   { return ZigTypes.LARROWEQUAL; }
+"{"    { return ZigTypes.LBRACE; }
+"["    { return ZigTypes.LBRACKET; }
+"("    { return ZigTypes.LPAREN; }
+"-"    { return ZigTypes.MINUS; }
+"-="   { return ZigTypes.MINUSEQUAL; }
+"-%"   { return ZigTypes.MINUSPERCENT; }
+"-%="  { return ZigTypes.MINUSPERCENTEQUAL; }
+"->"   { return ZigTypes.MINUSRARROW; }
+"%"    { return ZigTypes.PERCENT; }
+"%="   { return ZigTypes.PERCENTEQUAL; }
+"|"    { return ZigTypes.PIPE; }
+"||"   { return ZigTypes.PIPE2; }
+"|="   { return ZigTypes.PIPEEQUAL; }
+"+"    { return ZigTypes.PLUS; }
+"++"   { return ZigTypes.PLUS2; }
+"+="   { return ZigTypes.PLUSEQUAL; }
+"+%"   { return ZigTypes.PLUSPERCENT; }
+"+%="  { return ZigTypes.PLUSPERCENTEQUAL; }
+"[*c]" { return ZigTypes.PTRC; }
+"[*]"  { return ZigTypes.PTRUNKNOWN; }
+"?"    { return ZigTypes.QUESTIONMARK; }
+">"    { return ZigTypes.RARROW; }
+">>"   { return ZigTypes.RARROW2; }
+">>="  { return ZigTypes.RARROW2EQUAL; }
+">="   { return ZigTypes.RARROWEQUAL; }
+"}"    { return ZigTypes.RBRACE; }
+"]"    { return ZigTypes.RBRACKET; }
+")"    { return ZigTypes.RPAREN; }
+";"    { return ZigTypes.SEMICOLON; }
+"/"    { return ZigTypes.SLASH; }
+"/="   { return ZigTypes.SLASHEQUAL; }
+"~"    { return ZigTypes.TILDE; }
 
-\<\<= { return ZigTypes.SHL_ASSIGN_SYM; } // <<=
->>= { return ZigTypes.SHR_ASSIGN_SYM; }
-=> { return ZigTypes.ARROW_SYM; }
--> { return ZigTypes.SMALL_ARROW_SYM; }
+align           { return ZigTypes.ALIGN_KEYWORD; }
+allowzero       { return ZigTypes.ALLOWZERO_KEYWORD; }
+and             { return ZigTypes.AND_KEYWORD; }
+anyframe        { return ZigTypes.ANYFRAME_KEYWORD; }
+anytype         { return ZigTypes.ANYTYPE_KEYWORD; }
+asm             { return ZigTypes.ASM_KEYWORD; }
+async           { return ZigTypes.ASYNC_KEYWORD; }
+await           { return ZigTypes.AWAIT_KEYWORD; }
+break           { return ZigTypes.BREAK_KEYWORD; }
+catch           { return ZigTypes.CATCH_KEYWORD; }
+comptime        { return ZigTypes.COMPTIME_KEYWORD; }
+const           { return ZigTypes.CONST_KEYWORD; }
+continue        { return ZigTypes.CONTINUE_KEYWORD; }
+defer           { return ZigTypes.DEFER_KEYWORD; }
+else            { return ZigTypes.ELSE_KEYWORD; }
+enum            { return ZigTypes.ENUM_KEYWORD; }
+errdefer        { return ZigTypes.ERRDEFER_KEYWORD; }
+error           { return ZigTypes.ERROR_KEYWORD; }
+export          { return ZigTypes.EXPORT_KEYWORD; }
+extern          { return ZigTypes.EXTERN_KEYWORD; }
+false           { return ZigTypes.FALSE_KEYWORD; }
+fn              { return ZigTypes.FN_KEYWORD; }
+for             { return ZigTypes.FOR_KEYWORD; }
+if              { return ZigTypes.IF_KEYWORD; }
+inline          { return ZigTypes.INLINE_KEYWORD; }
+noalias         { return ZigTypes.NOALIAS_KEYWORD; }
+nosuspend       { return ZigTypes.NOSUSPEND_KEYWORD; } // Not in official keyword macro, probably oversight
+null            { return ZigTypes.NULL_KEYWORD; }
+opaque          { return ZigTypes.OPAQUE_KEYWORD; }
+or              { return ZigTypes.OR_KEYWORD; }
+orelse          { return ZigTypes.ORELSE_KEYWORD; }
+packed          { return ZigTypes.PACKED_KEYWORD; }
+pub             { return ZigTypes.PUB_KEYWORD; }
+resume          { return ZigTypes.RESUME_KEYWORD; }
+return          { return ZigTypes.RETURN_KEYWORD; }
+linksection     { return ZigTypes.LINKSECTION_KEYWORD; }
+struct          { return ZigTypes.STRUCT_KEYWORD; }
+suspend         { return ZigTypes.SUSPEND_KEYWORD; }
+switch          { return ZigTypes.SWITCH_KEYWORD; }
+test            { return ZigTypes.TEST_KEYWORD; }
+threadlocal     { return ZigTypes.THREADLOCAL_KEYWORD; }
+true            { return ZigTypes.TRUE_KEYWORD; }
+try             { return ZigTypes.TRY_KEYWORD; }
+undefined       { return ZigTypes.UNDEFINED_KEYWORD; }
+union           { return ZigTypes.UNION_KEYWORD; }
+unreachable     { return ZigTypes.UNREACHABLE_KEYWORD; }
+usingnamespace  { return ZigTypes.USINGNAMESPACE_KEYWORD; }
+var             { return ZigTypes.VAR_KEYWORD; }
+volatile        { return ZigTypes.VOLATILE_KEYWORD; }
+while           { return ZigTypes.WHILE_KEYWORD; }
 
-\+%= { return ZigTypes.PLUS_MOD_ASSIGN_SYM; }
-\-%= { return ZigTypes.MINUS_MOD_ASSIGN_SYM; }
-\*%= { return ZigTypes.STAR_MOD_ASSIGN_SYM; }
-//\/%= { return ZigTypes.DIV_MOD_ASSIGN_SYM; }
 
-\+% { return ZigTypes.PLUS_MOD_SYM; }
-\-% { return ZigTypes.MINUS_MOD_SYM; }
-\*% { return ZigTypes.STAR_SYM; }
+{CHAR_LITERAL}          { return ZigTypes.CHAR_LITERAL; }
+{STRING_LITERAL_SINGLE} { return ZigTypes.STRING_LITERAL_SINGLE; }
+{LINE_STRING}           { return ZigTypes.LINE_STRING; }
 
-\<< { return ZigTypes.SHL_SYM; }
-\>> { return ZigTypes.SHR_SYM; }
+{INCOMPLETE_STRING}     { return TokenType.BAD_CHARACTER; }
+{INCOMPLETE_CHAR}       { return TokenType.BAD_CHARACTER; }
 
-\+= { return ZigTypes.PLUS_ASSIGN_SYM; }
-\-= { return ZigTypes.MINUS_ASSIGN_SYM; }
-\*= { return ZigTypes.STAR_ASSIGN_SYM; }
-\/= { return ZigTypes.DIV_ASSIGN_SYM; }
-\^= { return ZigTypes.EXPONENT_ASSIGN_SYM; }
-\|= { return ZigTypes.OR_ASSIGN_SYM; }
-\!= { return ZigTypes.UNEQUAL_SYM; }
-\>= { return ZigTypes.GE_SYM; }
-\<= { return ZigTypes.LE_SYM; }
-&= { return ZigTypes.AND_ASSIGN_SYM; }
-%= { return ZigTypes.MOD_ASSIGN_SYM; }
-== { return ZigTypes.EQUAL_SYM; }
+{INTEGER_LITERAL}       { return ZigTypes.INTEGER_LITERAL; }
+{FLOAT_LITERAL}         { return ZigTypes.FLOAT_LITERAL; }
+{IDENTIFIER}            { return ZigTypes.IDENTIFIER; }
+{BUILTIN_IDENTIFIER}    { return ZigTypes.BUILTIN_IDENTIFIER; }
 
-\+\+ { return ZigTypes.INC_SYM; }
-// \-\- { return ZigTypes.DEC_SYM; }
-\*\* { return ZigTypes.STAR_STAR_SYM; }
-\|\| { return ZigTypes.SEP_SEP_SYM; }
-
-\> { return ZigTypes.GT_SYM; }
-\< { return ZigTypes.LT_SYM; }
-\+ { return ZigTypes.PLUS_SYM; }
-\- { return ZigTypes.MINUS_SYM; }
-\* { return ZigTypes.STAR_SYM; }
-\/ { return ZigTypes.DIV_SYM; }
-\^ { return ZigTypes.EXPONENT_SYM; }
-\| { return ZigTypes.SEP_SYM; }
-\! { return ZigTypes.NOT_SYM; }
-\?\? { return ZigTypes.VERY_QUESTION_SYM; } // 敲皮
-\? { return ZigTypes.QUESTION_SYM; }
-\~ { return ZigTypes.BITWISE_NOT_SYM; }
-& { return ZigTypes.AND_SYM; }
-% { return ZigTypes.MOD_SYM; }
-= { return ZigTypes.EQ_SYM; }
-@ { yybegin(AFTER_AT); return ZigTypes.AT_SYM; }
-
-, { return ZigTypes.COMMA_SYM; }
-{SEMICOLON} { return ZigTypes.SEMICOLON_SYM; }
-: { return ZigTypes.COLON_SYM; }
-\( { return ZigTypes.LEFT_PAREN; }
-\) { return ZigTypes.RIGHT_PAREN; }
-\{ { return ZigTypes.LEFT_BRACE; }
-\} { return ZigTypes.RIGHT_BRACE; }
-\[ { return ZigTypes.LEFT_BRACKET; }
-\] { return ZigTypes.RIGHT_BRACKET; }
-
-\.\.\. { return ZigTypes.RANGE_SYM; }
-\.\. { return ZigTypes.SLICE_SYM; }
-\. { return ZigTypes.DOT_SYM; }
-
-{STRING_LITERAL} { return ZigTypes.STR; }
-{INCOMPLETE_STRING} { return TokenType.BAD_CHARACTER; }
-{CHAR_LITERAL} { return ZigTypes.CHAR_LITERAL; }
-{INCOMPLETE_CHAR} { return TokenType.BAD_CHARACTER; }
-
-test { return ZigTypes.TEST_KEYWORD; }
-pub { return ZigTypes.PUB_KEYWORD; }
-export { return ZigTypes.EXPORT_KEYWORD; }
-switch { return ZigTypes.SWITCH_KEYWORD; }
-comptime { return ZigTypes.COMPTIME_KEYWORD; }
-const { return ZigTypes.CONST_KEYWORD; }
-var { return ZigTypes.VAR_KEYWORD; }
-align { return ZigTypes.ALIGN_KEYWORD; }
-for { return ZigTypes.FOR_KEYWORD; }
-section { return ZigTypes.SECTION_KEYWORD; }
-use { return ZigTypes.USE_KEYWORD; }
-extern { return ZigTypes.EXTERN_KEYWORD; }
-nakedcc { return ZigTypes.NAKEDCC_KEYWORD; }
-stdcallcc { return ZigTypes.STDCALLCC_KEYWORD; }
-orelse { return ZigTypes.ORELSE_KEYWORD; }
-async { return ZigTypes.ASYNC_KEYWORD; }
-fn { return ZigTypes.FN_KEYWORD; }
-section { return ZigTypes.SECTION_KEYWORD; }
-align { return ZigTypes.ALIGN_KEYWORD; }
-inline { return ZigTypes.INLINE_KEYWORD; }
-comptime { return ZigTypes.COMPTIME_KEYWORD; }
-noalias { return ZigTypes.NOALIAS_KEYWORD; }
-asm { return ZigTypes.ASM_KEYWORD; }
-volatile { return ZigTypes.VOLATILE_KEYWORD; }
-return { return ZigTypes.RETURN_KEYWORD; }
-try { return ZigTypes.TRY_KEYWORD; }
-await { return ZigTypes.AWAIT_KEYWORD; }
-break { return ZigTypes.BREAK_KEYWORD; }
-cancel { return ZigTypes.CANCEL_KEYWORD; }
-resume { return ZigTypes.RESUME_KEYWORD; }
-catch { return ZigTypes.CATCH_KEYWORD; }
-defer { return ZigTypes.DEFER_KEYWORD; }
-errdefer { return ZigTypes.DEFERROR_KEYWORD; }
-true { return ZigTypes.TRUE_KEYWORD; }
-false { return ZigTypes.FALSE_KEYWORD; }
-null { return ZigTypes.NULL_KEYWORD; }
-enum { return ZigTypes.ENUM_KEYWORD; }
-continue { return ZigTypes.CONTINUE_KEYWORD; }
-and { return ZigTypes.AND_KEYWORD; }
-or { return ZigTypes.OR_KEYWORD; }
-if { return ZigTypes.IF_KEYWORD; }
-else { return ZigTypes.ELSE_KEYWORD; }
-while { return ZigTypes.WHILE_KEYWORD; }
-suspend { return ZigTypes.SUSPEND_KEYWORD; }
-this { return ZigTypes.THIS_KEYWORD; }
-error { return ZigTypes.ERROR_KEYWORD; }
-undefined { return ZigTypes.UNDEFINED_KEYWORD; }
-unreachable { return ZigTypes.UNREACHABLE_KEYWORD; }
-packed { return ZigTypes.PACKED_KEYWORD; }
-struct { return ZigTypes.STRUCT_KEYWORD; }
-union { return ZigTypes.UNION_KEYWORD; }
-
-{SYMBOL} { return ZigTypes.SYM; }
-{INTEGER} { return ZigTypes.INT_LITERAL; }
-{FLOAT} { return ZigTypes.FLOAT_LITERAL; }
-
-{OTHERWISE} { return TokenType.BAD_CHARACTER; }
+{OTHERWISE}             { return TokenType.BAD_CHARACTER; }

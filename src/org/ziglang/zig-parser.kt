@@ -33,8 +33,8 @@ class ZigTokenType(debugName: String) : IElementType(debugName, ZigLanguage.INST
 	companion object TokenHolder {
 		@JvmField val LINE_COMMENT = ZigTokenType("comment")
 		@JvmField val COMMENTS = TokenSet.create(LINE_COMMENT)
-		@JvmField val STRINGS = TokenSet.create(ZigTypes.STR)
-		@JvmField val IDENTIFIERS = TokenSet.create(ZigTypes.SYM, ZigTypes.SYMBOL)
+		@JvmField val STRINGS = TokenSet.create(ZigTypes.STRING_LITERAL_SINGLE, ZigTypes.LINE_STRING)
+		@JvmField val IDENTIFIERS = TokenSet.create(ZigTypes.IDENTIFIER, ZigTypes.SYMBOL)
 
 		fun fromText(string: String, project: Project) = PsiFileFactory
 				.getInstance(project)

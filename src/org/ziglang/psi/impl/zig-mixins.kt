@@ -6,8 +6,6 @@ import com.intellij.psi.*
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.PsiTreeUtil
 import org.ziglang.ZigTokenType
-import org.ziglang.orFalse
-import org.ziglang.orTrue
 import org.ziglang.psi.*
 
 abstract class TrivialDeclaration(node: ASTNode) : ASTWrapperPsiElement(node), PsiNameIdentifierOwner {
@@ -17,7 +15,7 @@ abstract class TrivialDeclaration(node: ASTNode) : ASTWrapperPsiElement(node), P
 
 	override fun processDeclarations(
 			processor: PsiScopeProcessor, substitutor: ResolveState, lastParent: PsiElement?, place: PsiElement) =
-			nameIdentifier?.processDeclarations(processor, substitutor, lastParent, place).orTrue()
+			nameIdentifier?.processDeclarations(processor, substitutor, lastParent, place) != false
 }
 
 interface IZigSymbol : PsiNameIdentifierOwner {
@@ -27,15 +25,24 @@ interface IZigSymbol : PsiNameIdentifierOwner {
 	val isDeclaration: Boolean
 }
 
-abstract class ZigVariableDeclarationMixin(node: ASTNode) : TrivialDeclaration(node), ZigVariableDeclaration
-abstract class ZigParamDeclarationMixin(node: ASTNode) : TrivialDeclaration(node), ZigParamDeclaration
-abstract class ZigFnDeclarationMixin(node: ASTNode) : TrivialDeclaration(node), ZigFnDeclaration {
-	override fun processDeclarations(processor: PsiScopeProcessor, substitutor: ResolveState, lastParent: PsiElement?, place: PsiElement) =
-			fnProto.parameterList.paramDeclarationList.all { it.processDeclarations(processor, substitutor, lastParent, place) }
-					&& super.processDeclarations(processor, substitutor, lastParent, place)
+interface IZigVariableDeclaration {
+	val isConst: Boolean
+}
+
+abstract class ZigVariableDeclarationMixin(node: ASTNode) : TrivialDeclaration(node), IZigVariableDeclaration {
+	override val isConst: Boolean
+		get() = node.findChildByType(ZigTypes.CONST_KEYWORD) != null
+}
+abstract class ZigParamDeclarationMixin(node: ASTNode) : TrivialDeclaration(node), ZigParamDecl
+abstract class ZigFnDeclarationMixin(node: ASTNode) : TrivialDeclaration(node), ZigGlobalFnDeclaration {
+	override fun processDeclarations(processor: PsiScopeProcessor, substitutor: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean {
+		return (functionPrototype.paramDeclList.all { it.processDeclarations(processor, substitutor, lastParent, place) }
+				&& super.processDeclarations(processor, substitutor, lastParent, place))
+	}
 }
 
 abstract class ZigSymbolMixin(node: ASTNode) : ZigExprImpl(node), ZigSymbol {
+
 	final override val isFunctionName: Boolean
 		get() = parent is ZigFnProto && prevSiblingTypeIgnoring(
 				ZigTypes.FN_KEYWORD,
@@ -43,9 +50,10 @@ abstract class ZigSymbolMixin(node: ASTNode) : ZigExprImpl(node), ZigSymbol {
 				ZigTokenType.LINE_COMMENT) != null
 
 	final override val isParameter: Boolean
-		get() = parent is ZigParamDeclaration
+		get() = parent is ZigParamDecl
+
 	final override val isVariableName: Boolean
-		get() = parent is ZigVariableDeclaration && prevSiblingTypeIgnoring(
+		get() = parent is ZigVarDecl && prevSiblingTypeIgnoring(
 				ZigTypes.CONST_KEYWORD,
 				TokenType.WHITE_SPACE,
 				ZigTokenType.LINE_COMMENT) ?: prevSiblingTypeIgnoring(
@@ -59,6 +67,7 @@ abstract class ZigSymbolMixin(node: ASTNode) : ZigExprImpl(node), ZigSymbol {
 				isVariableName
 
 	override fun getNameIdentifier() = this
+
 	private var referenceImpl: ZigSymbolRef? = null
 
 	/** For [ZigSymbolMixin], we cannot have a reference if it's a declaration. */
@@ -76,7 +85,7 @@ abstract class ZigSymbolMixin(node: ASTNode) : ZigExprImpl(node), ZigSymbol {
 	}
 }
 
-abstract class ZigStringMixin(node: ASTNode) : ZigExprImpl(node), ZigString {
+abstract class ZigStringMixin(node: ASTNode) : ZigExprImpl(node), ZigStringLiteral {
 	override fun isValidHost() = true
 	override fun updateText(text: String) = ElementManipulators.handleContentChange(this, text)
 	override fun createLiteralTextEscaper() = LiteralTextEscaper.createSimple(this)
@@ -87,7 +96,7 @@ abstract class ZigBlockMixin(node: ASTNode) : ASTWrapperPsiElement(node), ZigBlo
 			processor: PsiScopeProcessor, state: ResolveState, lastParent: PsiElement?, place: PsiElement) =
 			statementList.all {
 				it.firstChild
-						.let { (it as? ZigLocalVariableDeclaration)?.variableDeclaration ?: it }
+						.let { (it as? ZigVarDecl) ?: it }
 						.processDeclarations(processor, state, lastParent, place)
 			}
 }

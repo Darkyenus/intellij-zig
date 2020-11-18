@@ -6,23 +6,18 @@ import org.ziglang.psi.*
 
 fun PsiElement.presentText() = when (this) {
 	is ZigFile -> name
-	is ZigIfBlock,
-	is ZigIfExprOrBlock -> "if ${children.getOrNull(1)?.text ?: ""}"
-	is ZigFnDeclaration -> "fn ${fnProto.name}()"
-	is ZigExternDeclaration -> "extern ${variableDeclaration?.name}"
-	is ZigGlobalVarDeclaration -> "global ${variableDeclaration.name}"
-	is ZigUseDeclaration -> "use ${expr.text}"
+	is ZigIfExpr -> "if ${children.getOrNull(1)?.text ?: ""}"
+	is ZigGlobalFnDeclaration -> "fn ${functionPrototype.name}()"
+	is ZigGlobalFnPrototype -> "fn ${functionPrototype.name}()"
+	is ZigGlobalVarDeclaration -> "${if (varDecl.isConst) "const" else "var"} ${varDecl.name}"
+	is ZigGlobalUsingNamespace -> "usingnamespace ${expr.text}"
 	else -> text
 }
 
 val PsiElement.treeViewTokens
 	get() = this is ZigFile ||
-			this is ZigFnDeclaration ||
-			this is ZigExternDeclaration ||
+			this is ZigGlobalFnDeclaration ||
+			this is ZigGlobalFnPrototype ||
 			this is ZigGlobalVarDeclaration ||
-			this is ZigUseDeclaration ||
-			this is ZigIfExprOrBlock ||
-			this is ZigIfErrorBlock ||
-			this is ZigIfExprOrBlock ||
-			this is ZigTestBlock ||
-			this is ZigTestExprOrBlock
+			this is ZigGlobalUsingNamespace ||
+			this is ZigTestDecl

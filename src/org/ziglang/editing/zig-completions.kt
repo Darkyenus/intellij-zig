@@ -86,22 +86,20 @@ class ZigCompletionContributor : CompletionContributor() {
 
 	init {
 		extend(CompletionType.BASIC,
-				psiElement(ZigTypes.SYM)
+				psiElement(ZigTypes.IDENTIFIER)
 						.andNot(psiElement().afterLeaf(".", "@")),
 				ZigCompletionProvider(KEYWORD_LITERALS))
 		extend(CompletionType.BASIC,
-				psiElement(ZigTypes.SYM)
+				psiElement(ZigTypes.IDENTIFIER)
 						.andNot(psiElement().afterLeaf(".", "@"))
-						.andNot(psiElement()
-								.beforeLeaf(psiElement(ZigTypes.SEMICOLON_SYM))),
+						.andNot(psiElement().beforeLeaf(psiElement(ZigTypes.SEMICOLON))),
 				ZigCompletionProvider(TOP_KEYWORDS))
 		extend(CompletionType.BASIC,
-				psiElement(ZigTypes.SYM)
+				psiElement(ZigTypes.IDENTIFIER)
 						.andNot(psiElement().afterLeaf(".", "@")),
 				ZigCompletionProvider(EXPR_KEYWORDS))
 		extend(CompletionType.BASIC,
-				psiElement()
-						.afterLeaf("@")
+				psiElement(ZigTypes.BUILTIN_IDENTIFIER)
 						.andNot(psiElement().afterLeaf(".")),
 				ZigCompletionProvider(BUILTIN_FUNCTIONS))
 	}

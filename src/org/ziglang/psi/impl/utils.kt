@@ -1,7 +1,7 @@
 package org.ziglang.psi.impl
 
-import com.intellij.psi.*
-import com.intellij.psi.scope.PsiScopeProcessor
+import com.intellij.psi.PsiElement
+import com.intellij.psi.SyntaxTraverser
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
 import org.ziglang.psi.ZigExpr

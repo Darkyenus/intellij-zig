@@ -1,6 +1,9 @@
 package org.ziglang.editing
 
-import com.intellij.lang.*
+import com.intellij.lang.ASTNode
+import com.intellij.lang.BracePair
+import com.intellij.lang.Commenter
+import com.intellij.lang.PairedBraceMatcher
 import com.intellij.lang.cacheBuilder.DefaultWordsScanner
 import com.intellij.lang.findUsages.FindUsagesProvider
 import com.intellij.lang.folding.FoldingBuilderEx
@@ -9,14 +12,34 @@ import com.intellij.lang.refactoring.RefactoringSupportProvider
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.ui.InputValidatorEx
-import com.intellij.psi.*
+import com.intellij.psi.PsiComment
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiNameIdentifierOwner
+import com.intellij.psi.PsiNamedElement
+import com.intellij.psi.SyntaxTraverser
 import com.intellij.psi.tree.IElementType
-import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy
 import com.intellij.spellchecker.tokenizer.Tokenizer
 import com.intellij.ui.breadcrumbs.BreadcrumbsProvider
-import org.ziglang.*
-import org.ziglang.psi.*
+import org.ziglang.ZIG_COMMENT_START
+import org.ziglang.ZigBundle
+import org.ziglang.ZigLanguage
+import org.ziglang.ZigLexerAdapter
+import org.ziglang.ZigTokenType
+import org.ziglang.psi.ZigBlock
+import org.ziglang.psi.ZigBlockExpr
+import org.ziglang.psi.ZigErrorSetDecl
+import org.ziglang.psi.ZigFnProto
+import org.ziglang.psi.ZigGlobalFnDeclaration
+import org.ziglang.psi.ZigGlobalFnPrototype
+import org.ziglang.psi.ZigGlobalVarDeclaration
+import org.ziglang.psi.ZigStringLiteral
+import org.ziglang.psi.ZigSymbol
+import org.ziglang.psi.ZigTestDecl
+import org.ziglang.psi.ZigTopLevelComptime
+import org.ziglang.psi.ZigTypes
+import org.ziglang.psi.ZigVariableDeclarationStatement
 
 class ZigCommenter : Commenter {
 	override fun getCommentedBlockCommentPrefix(): String? = blockCommentPrefix
@@ -29,9 +52,9 @@ class ZigCommenter : Commenter {
 class ZigBraceMatcher : PairedBraceMatcher {
 	private companion object PairHolder {
 		private val PAIRS = arrayOf(
-				BracePair(ZigTypes.LEFT_BRACE, ZigTypes.RIGHT_BRACE, false),
-				BracePair(ZigTypes.LEFT_BRACKET, ZigTypes.RIGHT_BRACKET, false),
-				BracePair(ZigTypes.LEFT_PAREN, ZigTypes.RIGHT_PAREN, false)
+				BracePair(ZigTypes.LBRACE,   ZigTypes.RBRACE, false),
+				BracePair(ZigTypes.LBRACKET, ZigTypes.RBRACKET, false),
+				BracePair(ZigTypes.LPAREN,   ZigTypes.RPAREN, false)
 		)
 	}
 
@@ -43,10 +66,10 @@ class ZigBraceMatcher : PairedBraceMatcher {
 object ZigNameValidator : InputValidatorEx {
 	override fun canClose(inputString: String?) = checkInput(inputString)
 	override fun checkInput(inputString: String?) = inputString?.run {
-		all {
-			it.isLetterOrDigit() || it == '_'
-		} && !firstOrNull()?.isDigit().orFalse()
-	}.orFalse()
+			all {
+				it.isLetterOrDigit() || it == '_'
+			} && !(firstOrNull()?.isDigit() == true)
+		} == true
 
 	override fun getErrorText(inputString: String?) =
 			ZigBundle.message("zig.actions.new-file.invalid", inputString.orEmpty())
@@ -56,7 +79,7 @@ class ZigSpellcheckerStrategy : SpellcheckingStrategy() {
 	override fun getTokenizer(element: PsiElement): Tokenizer<PsiElement> = when (element) {
 		is PsiComment -> TEXT_TOKENIZER
 		is ZigSymbol -> if (element.isDeclaration) TEXT_TOKENIZER else EMPTY_TOKENIZER
-		is ZigString -> super.getTokenizer(element).takeIf { it != EMPTY_TOKENIZER } ?: TEXT_TOKENIZER
+		is ZigStringLiteral -> super.getTokenizer(element).takeIf { it != EMPTY_TOKENIZER } ?: TEXT_TOKENIZER
 		else -> EMPTY_TOKENIZER
 	}
 }
@@ -71,9 +94,9 @@ class ZigFolderBuilder : FoldingBuilderEx(), DumbAware {
 	override fun buildFoldRegions(
 			root: PsiElement, document: Document, quick: Boolean) = SyntaxTraverser
 			.psiTraverser(root)
-			.filter { it is ZigBlock || it is ZigErrorSetExpr }
-			.map { ZigFoldingDescriptor(it, if (it is ZigErrorSetExpr) "error …" else "{…}") }
-			.toTypedArray()
+			.filter { it is ZigBlock || it is ZigErrorSetDecl }
+			.map { ZigFoldingDescriptor(it, if (it is ZigErrorSetDecl) "error …" else "{…}") }
+			.toList().toTypedArray()
 
 	override fun isCollapsedByDefault(node: ASTNode) = true
 	override fun getPlaceholderText(node: ASTNode) = "…"
@@ -87,25 +110,27 @@ class ZigBreadcrumbsProvider : BreadcrumbsProvider {
 	private fun ZigFnProto.text() = name?.let { "$it()" }
 	override fun getLanguages() = arrayOf(ZigLanguage.INSTANCE)
 	override fun getElementInfo(element: PsiElement) = cutText(when (element) {
-		is ZigFnDeclaration -> element.fnProto.text()
-		is ZigExternDeclaration -> PsiTreeUtil.findChildOfType(element, ZigFnProto::class.java)?.text()
-		is ZigTestDeclaration -> element.string.text
-		is ZigCompTimeBlock -> "comptime"
-		is ZigBlockBlock -> element.firstChild.text
+		is ZigGlobalFnDeclaration -> element.functionPrototype.text()
+		is ZigGlobalFnPrototype -> element.functionPrototype.text()
+		is ZigTestDecl -> element.testName.text
+		is ZigTopLevelComptime -> "comptime"
+		is ZigBlock -> element.firstChild.text
 		is ZigBlockExpr -> "{…}"
-		is ZigGlobalVarDeclaration -> element.variableDeclaration.name
-		is ZigVariableDeclaration -> element.name
+		is ZigGlobalVarDeclaration -> element.varDecl.name
+		is ZigVariableDeclarationStatement -> element.varDecl.name
 		else -> null
 	}.orEmpty(), TEXT_MAX)
 
-	override fun acceptElement(element: PsiElement) = element is ZigFnDeclaration ||
-			element is ZigTestDeclaration ||
-			element is ZigExternDeclaration ||
-			element is ZigCompTimeBlock ||
-			element is ZigBlockBlock ||
-			element is ZigBlockExpr ||
-			element is ZigGlobalVarDeclaration ||
-			element is ZigVariableDeclaration
+	override fun acceptElement(element: PsiElement): Boolean {
+		return element is ZigGlobalFnDeclaration ||
+				element is ZigGlobalFnPrototype ||
+				element is ZigTestDecl ||
+				element is ZigTopLevelComptime ||
+				element is ZigBlock ||
+				element is ZigBlockExpr ||
+				element is ZigGlobalVarDeclaration ||
+				element is ZigVariableDeclarationStatement
+	}
 }
 
 class ZigFindUsagesProvider : FindUsagesProvider {

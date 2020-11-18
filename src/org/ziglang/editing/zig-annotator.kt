@@ -27,26 +27,21 @@ class ZigAnnotator : Annotator {
 	override fun annotate(element: PsiElement, holder: AnnotationHolder) {
 		when (element) {
 			is ZigSymbol -> symbol(element, holder)
-			is ZigMacroExpr -> macroExpr(element, holder)
-			is ZigIfBlock -> ifExpr(element.expr, holder)
-			is ZigIfExprOrBlock -> ifExpr(element.firstExprOrNull(), holder)
-			is ZigIfErrorBlock -> ifExpr(element.firstExprOrNull(), holder)
-			is ZigIfErrorExprOrBlock -> ifExpr(element.firstExprOrNull(), holder)
-			is ZigTestBlock -> ifExpr(element.firstExprOrNull(), holder)
-			is ZigTestExprOrBlock -> ifExpr(element.firstExprOrNull(), holder)
-			is ZigString -> string(element, holder)
+			is ZigPrimaryBuiltinExpr -> macroExpr(element, holder)
+			is ZigIfPrefix -> ifExpr(element.condition, holder)
+			is ZigTestDecl -> ifExpr(element.firstExprOrNull(), holder)
+			is ZigStringLiteral -> string(element, holder)
 		}
 	}
 
 	@Suppress("RemoveRedundantBackticks", "LocalVariableName")
-	private fun macroExpr(macroExpr: ZigMacroExpr, holder: AnnotationHolder) {
-		val `@` = macroExpr.firstChild?.takeIf { it.node.elementType == ZigTypes.AT_SYM } ?: return
-		val element = `@`.nextSibling?.takeIf { it.node.elementType == ZigTypes.BUILTIN_FUNCTION } ?: return
-		if (element.text !in builtinFunctions)
-			holder.createErrorAnnotation(element, ZigBundle.message("zig.lint.unknown-builtin-symbol")).apply {
+	private fun macroExpr(macroExpr: ZigPrimaryBuiltinExpr, holder: AnnotationHolder) {
+		val builtin = macroExpr.builtin
+		val builtinName = builtin.text.removePrefix("@")
+		if (builtinName !in builtinFunctions)
+			holder.createErrorAnnotation(builtin, ZigBundle.message("zig.lint.unknown-builtin-symbol")).apply {
 				highlightType = ProblemHighlightType.LIKE_UNKNOWN_SYMBOL
-				registerFix(ZigRemoveElementIntention(`@`,
-						ZigBundle.message("zig.lint.un-builtin")))
+				//registerFix(ZigRemoveElementIntention(`@`, ZigBundle.message("zig.lint.un-builtin")))
 			}
 	}
 
@@ -60,12 +55,12 @@ class ZigAnnotator : Annotator {
 
 	private fun ifExpr(condition: ZigExpr?, holder: AnnotationHolder) {
 		when {
-			condition is ZigBoolean ->
+			condition is ZigPrimaryBoolExpr ->
 				holder.createWarningAnnotation(condition, ZigBundle.message("zig.lint.const-condition", condition.text))
 		}
 	}
 
-	private fun string(element: ZigString, holder: AnnotationHolder) {
+	private fun string(element: ZigStringLiteral, holder: AnnotationHolder) {
 		fun String.nextString(start: Int, length: Int) =
 				substring(start, min(start + length, this.length))
 

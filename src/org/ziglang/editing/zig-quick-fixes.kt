@@ -20,7 +20,7 @@ class ZigRemoveElementIntention(
 		if (element.isValid) ApplicationManager.getApplication().runWriteAction {
 			val virtualFile = element.containingFile.virtualFile
 			element.delete()
-			FileContentUtil.reparseFiles(virtualFile)
+			FileContentUtil.reparseFiles(project, listOf(virtualFile), false)
 		}
 	}
 }

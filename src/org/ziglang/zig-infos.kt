@@ -14,7 +14,6 @@ import icons.ZigIcons
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.PropertyKey
 import org.ziglang.psi.ZigGlobalVarDeclaration
-import org.ziglang.psi.ZigLocalVariableDeclaration
 import java.util.*
 
 object ZigFileType : LanguageFileType(ZigLanguage.INSTANCE) {
@@ -34,7 +33,7 @@ class ZigFile(viewProvider: FileViewProvider) : PsiFileBase(viewProvider, ZigLan
 	override fun getFileType() = ZigFileType
 	override fun processDeclarations(processor: PsiScopeProcessor, state: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean =
 			children.all {
-				((it as? ZigGlobalVarDeclaration)?.variableDeclaration ?: it)
+				((it as? ZigGlobalVarDeclaration)?.varDecl ?: it)
 						.processDeclarations(processor, state, lastParent, place)
 			}
 }

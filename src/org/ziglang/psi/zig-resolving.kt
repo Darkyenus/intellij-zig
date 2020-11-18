@@ -9,7 +9,6 @@ import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.PsiTreeUtil
 import icons.ZigIcons
 import org.ziglang.ZigTokenType
-import org.ziglang.orFalse
 
 /**
  * 今天就要成为吊打冰酱的人（超大雾
@@ -67,9 +66,9 @@ abstract class ResolveProcessor<ResolveResult>(private val place: PsiElement) : 
 				PsiTreeUtil.getParentOfType(element, ZigBlock::class.java)
 						?: element.parent.parent?.parent, place, true)
 		element.isParameter -> PsiTreeUtil.isAncestor(PsiTreeUtil.getParentOfType(
-				element, ZigFnDeclaration::class.java), place, true)
+				element, ZigGlobalFnDeclaration::class.java), place, true)
 		element.isFunctionName -> PsiTreeUtil.isAncestor(PsiTreeUtil.getParentOfType(
-				element, ZigFnDeclaration::class.java)?.parent, place, true)
+				element, ZigGlobalFnDeclaration::class.java)?.parent, place, true)
 		else -> false
 	}
 }

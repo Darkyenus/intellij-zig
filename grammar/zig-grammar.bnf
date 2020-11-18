@@ -13,406 +13,364 @@
   elementTypeClass='org.ziglang.ZigElementType'
 }
 
-zigFile ::= topLevelItem*
+zigFile ::= containerMembers
 
-symbol ::= SYM {
-	extends=expr
-	implements=['org.ziglang.psi.impl.IZigSymbol']
-	mixin='org.ziglang.psi.impl.ZigSymbolMixin'
+containerMembers ::=
+    ( testDecl
+    | topLevelComptime
+    | topLevelDecl
+    )* ((containerField COMMA)* containerField)?
+
+testDecl ::= TEST_KEYWORD stringLiteralSimple block {
+    methods = [
+        testName="stringLiteralSimple"
+    ]
 }
 
-string ::= STR | RAW_STR {
-	extends=expr
-	implements=['com.intellij.psi.PsiLanguageInjectionHost']
-	mixin='org.ziglang.psi.impl.ZigStringMixin'
+topLevelComptime ::= COMPTIME_KEYWORD block
+
+private topLevelDecl ::= ( // TopLevelDecl
+      globalFnPrototype
+    | globalFnDeclaration
+    | globalVarDeclaration
+    | globalUsingNamespace
+    )
+
+globalFnPrototype ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple? | INLINE_KEYWORD)? fnProto SEMICOLON {
+    methods=[
+        functionPrototype="fnProto"
+        extern="stringLiteralSimple"
+    ]
 }
+globalFnDeclaration ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple? | INLINE_KEYWORD)? fnProto block {
+    mixin='org.ziglang.psi.impl.ZigFnDeclarationMixin'
+    methods=[
+        functionPrototype="fnProto"
+        extern="stringLiteralSimple"
+    ]
+}
+globalVarDeclaration ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple?)? THREADLOCAL_KEYWORD? varDecl {
+    methods=[
+        extern="stringLiteralSimple"
+    ]
+}
+globalUsingNamespace ::= PUB_KEYWORD? USINGNAMESPACE_KEYWORD expr SEMICOLON
 
-private topLevelItem ::=
-   COMPTIME_KEYWORD block
- | fnDeclaration
- | externDeclaration
- | globalVarDeclaration
- | useDeclaration
- | testDeclaration
- | expr // for `fromText`
+fnProto ::= FN_KEYWORD symbol? LPAREN paramDeclList RPAREN byteAlign? linkSection? EXCLAMATIONMARK? (ANYTYPE_KEYWORD | typeExpr) {
+    implements=['com.intellij.psi.PsiNameIdentifierOwner']
+    mixin='org.ziglang.psi.impl.TrivialDeclaration'
+}
+private paramDeclList ::= (paramDecl COMMA)* paramDecl?
 
-testDeclaration ::= TEST_KEYWORD string block
-globalVarDeclaration ::=
- PUB_KEYWORD? EXPORT_KEYWORD?
-  variableDeclaration
- SEMICOLON_SYM
-
-localVariableDeclaration ::=
- COMPTIME_KEYWORD? variableDeclaration
- SEMICOLON_SYM
-
-variableDeclaration ::=
- (VAR_KEYWORD | CONST_KEYWORD) symbol (COLON_SYM (typeExpr | primary))?
- (ALIGN_KEYWORD LEFT_PAREN expr RIGHT_PAREN)?
- (SECTION_KEYWORD LEFT_PAREN expr RIGHT_PAREN)?
- (EQ_SYM expr)? {
-	implements=['com.intellij.psi.PsiNameIdentifierOwner']
+varDecl ::= (CONST_KEYWORD | VAR_KEYWORD) symbol (COLON typeExpr)? byteAlign? linkSection? (EQUAL expr)? SEMICOLON {
+	implements=['com.intellij.psi.PsiNameIdentifierOwner'; 'org.ziglang.psi.impl.IZigVariableDeclaration']
 	mixin='org.ziglang.psi.impl.ZigVariableDeclarationMixin'
 }
 
-containerField ::= symbol (COLON_SYM primary)? (EQ_SYM expr)? COMMA_SYM
-containerMember ::=
-   containerField
- | fnDeclaration
- | globalVarDeclaration
+containerField ::= COMPTIME_KEYWORD? symbol (COLON typeExpr)? (EQUAL expr)?
 
-useDeclaration ::=
- PUB_KEYWORD? USE_KEYWORD expr
- SEMICOLON_SYM
-
-externDeclaration ::=
- PUB_KEYWORD? EXTERN_KEYWORD string?
-  (fnProto | variableDeclaration)
- SEMICOLON_SYM
-
-fnProto ::=
- ( NAKEDCC_KEYWORD
- | STDCALLCC_KEYWORD
- | EXTERN_KEYWORD
- | (ASYNC_KEYWORD (LEFT_PAREN expr RIGHT_PAREN)?)
- )?
- FN_KEYWORD symbol? parameterList (ALIGN_KEYWORD LEFT_PAREN expr RIGHT_PAREN)?
- (SECTION_KEYWORD LEFT_PAREN expr RIGHT_PAREN)? NOT_SYM? (typeExpr | VAR_KEYWORD) {
-	extends=expr
-	implements=['com.intellij.psi.PsiNameIdentifierOwner']
-	mixin='org.ziglang.psi.impl.TrivialDeclaration'
+// Block level
+statement ::=
+      variableDeclarationStatement
+    | COMPTIME_KEYWORD blockExprStatement
+    | NOSUSPEND_KEYWORD blockExprStatement
+    | SUSPEND_KEYWORD (SEMICOLON | blockExprStatement)
+    | DEFER_KEYWORD blockExprStatement
+    | ERRDEFER_KEYWORD blockExprStatement
+    | ifStatement
+    | labeledStatement
+    | switchExpr
+    | assignExpr SEMICOLON {
+    pin=1
 }
 
-fnDeclaration ::=
- PUB_KEYWORD? (INLINE_KEYWORD | EXPORT_KEYWORD)?
-  fnProto block {
-	mixin='org.ziglang.psi.impl.ZigFnDeclarationMixin'
+variableDeclarationStatement ::= COMPTIME_KEYWORD? varDecl
+
+ifStatement ::=
+      ifPrefix blockExpr (ELSE_KEYWORD payload? statement)?
+    | ifPrefix assignExpr (SEMICOLON | ELSE_KEYWORD payload? statement)
+
+labeledStatement ::= blockLabel? (block | loopStatement)
+
+loopStatement ::= INLINE_KEYWORD? (forStatement | whileStatement)
+
+forStatement ::=
+      forPrefix blockExpr (ELSE_KEYWORD statement)?
+    | forPrefix assignExpr (SEMICOLON | ELSE_KEYWORD statement)
+
+whileStatement ::= blockExpr | assignExpr SEMICOLON
+
+blockExprStatement ::= blockExpr | assignExpr SEMICOLON
+
+blockExpr ::= blockLabel? block
+
+// Expression level
+assignExpr ::= expr (assignOp expr)?
+expr ::= TRY_KEYWORD* boolOrExpr
+boolOrExpr ::= boolAndExpr (OR_KEYWORD boolAndExpr)*
+boolAndExpr ::= compareExpr (AND_KEYWORD compareExpr)*
+compareExpr ::= bitwiseExpr (compareOp bitwiseExpr)?
+bitwiseExpr ::= bitShiftExpr (bitwiseOp bitShiftExpr)*
+bitShiftExpr ::= additionExpr (bitShiftOp additionExpr)*
+additionExpr ::= multiplyExpr (additionOp multiplyExpr)*
+multiplyExpr ::= prefixExpr (multiplyOp prefixExpr)*
+prefixExpr ::= prefixOp* primaryExpr
+// Primary expression which may not appear as a type
+primaryExpr ::=
+      asmExpr
+    | ifExpr
+    | BREAK_KEYWORD breakLabel? expr?
+    | COMPTIME_KEYWORD expr
+    | NOSUSPEND_KEYWORD expr
+    | CONTINUE_KEYWORD breakLabel?
+    | RESUME_KEYWORD expr
+    | RETURN_KEYWORD expr?
+    | blockLabel? loopExpr
+    | block
+    | curlySuffixExpr
+
+ifExpr ::= ifPrefix expr (ELSE_KEYWORD payload? expr)?
+
+block ::= LBRACE statement* RBRACE {
+    mixin='org.ziglang.psi.impl.ZigBlockMixin'
 }
 
-parameterList ::= LEFT_PAREN (paramDeclaration (COMMA_SYM paramDeclaration)*)? RIGHT_PAREN
+loopExpr ::= INLINE_KEYWORD? (forExpr | whileExpr)
 
-paramDeclaration ::=
- (NOALIAS_KEYWORD | COMPTIME_KEYWORD)?
- (symbol COLON_SYM)?
- (typeExpr | VAR_KEYWORD | RANGE_SYM) {
-	implements=['com.intellij.psi.PsiNameIdentifierOwner']
+forExpr ::= forPrefix expr (ELSE_KEYWORD expr)?
+
+whileExpr ::= whilePrefix expr (ELSE_KEYWORD payload? expr)?
+
+curlySuffixExpr ::= typeExpr initList?
+
+initList ::=
+      LBRACE fieldInit (COMMA fieldInit)* COMMA? RBRACE
+    | LBRACE expr (COMMA expr)* COMMA? RBRACE
+    | LBRACE RBRACE
+
+// Expression which may appear as a type (but does not have to represent a type)
+typeExpr ::= prefixTypeOp* errorUnionExpr
+
+errorUnionExpr ::= suffixExpr (EXCLAMATIONMARK typeExpr)?
+
+suffixExpr ::=
+      ASYNC_KEYWORD primaryTypeExpr suffixOp* fnCallArguments
+    | primaryTypeExpr (suffixOp | fnCallArguments)*
+
+// Primary expression which may appear as a type
+primaryTypeExpr ::=
+      primaryBuiltinExpr
+    | primaryCharExpr
+    | containerDecl
+    | DOT symbol
+    | DOT initList
+    | errorSetDecl
+    | primaryFloatExpr
+    | fnProto
+    | groupedExpr
+    | labeledTypeExpr
+    | symbol // may represent a variable, a type, maybe even something else
+    | ifTypeExpr
+    | primaryIntExpr
+    | COMPTIME_KEYWORD typeExpr
+    | ERROR_KEYWORD DOT symbol
+    | primaryBoolExpr
+    | primaryNullExpr
+    | primaryKeywordExpr
+    | stringLiteral
+    | switchExpr
+
+primaryBuiltinExpr ::= BUILTIN_IDENTIFIER fnCallArguments {
+    methods=[
+        builtin="BUILTIN_IDENTIFIER";
+        arguments="fnCallArguments"
+    ]
+}
+primaryIntExpr     ::= INTEGER_LITERAL
+primaryFloatExpr   ::= FLOAT_LITERAL
+primaryBoolExpr    ::= TRUE_KEYWORD | FALSE_KEYWORD
+primaryNullExpr    ::= NULL_KEYWORD
+primaryCharExpr    ::= CHAR_LITERAL
+primaryKeywordExpr ::= UNDEFINED_KEYWORD | UNREACHABLE_KEYWORD | ANYFRAME_KEYWORD
+
+containerDecl ::= (EXTERN_KEYWORD | PACKED_KEYWORD)? containerDeclAuto
+
+errorSetDecl ::= ERROR_KEYWORD LBRACE errorIdentifierList RBRACE { extends=expr }
+private errorIdentifierList  ::= (symbol COMMA)* symbol?
+
+groupedExpr ::= LPAREN expr RPAREN
+
+ifTypeExpr ::= ifPrefix typeExpr (ELSE_KEYWORD payload? typeExpr)?
+
+labeledTypeExpr ::=
+      blockLabel block
+    | blockLabel? loopTypeExpr
+
+loopTypeExpr ::= INLINE_KEYWORD? (forTypeExpr | whileTypeExpr)
+
+forTypeExpr ::= forPrefix typeExpr (ELSE_KEYWORD typeExpr)?
+
+whileTypeExpr ::= whilePrefix typeExpr (ELSE_KEYWORD payload? typeExpr)?
+
+switchExpr ::= SWITCH_KEYWORD LPAREN expr RPAREN LBRACE switchProngList RBRACE
+private switchProngList ::= (switchProng COMMA)* switchProng?
+
+// Assembly
+asmExpr ::= ASM_KEYWORD VOLATILE_KEYWORD? LPAREN stringLiteral asmOutput? RPAREN
+
+asmOutput ::= COLON asmOutputList asmInput?
+private asmOutputList   ::= (asmOutputItem COMMA)* asmOutputItem?
+asmOutputItem ::= LBRACKET symbol RBRACKET stringLiteral LPAREN (MINUSRARROW typeExpr | symbol) RPAREN
+
+asmInput ::= COLON asmInputList asmClobbers?
+private asmInputList    ::= (asmInputItem COMMA)* asmInputItem?
+asmInputItem ::= LBRACKET symbol RBRACKET stringLiteral LPAREN expr RPAREN
+
+asmClobbers ::= COLON asmClobbersList
+private asmClobbersList ::= (stringLiteral COMMA)* stringLiteral? //stringsList
+
+// Helper grammar
+breakLabel ::= COLON symbol
+
+blockLabel ::= symbol COLON
+
+fieldInit ::= DOT symbol EQUAL expr
+
+whileContinueExpr ::= COLON LPAREN assignExpr RPAREN
+
+linkSection ::= LINKSECTION_KEYWORD LPAREN expr RPAREN
+
+paramDecl ::= (NOALIAS_KEYWORD | COMPTIME_KEYWORD)? (symbol COLON)? paramType {
+    implements=['com.intellij.psi.PsiNameIdentifierOwner']
 	mixin='org.ziglang.psi.impl.ZigParamDeclarationMixin'
 }
 
-statement ::=
-   localVariableDeclaration
- | deferBlock
- | defer SEMICOLON_SYM
- | blockBlock
- | expr? SEMICOLON_SYM {
-	pin=1
+paramType ::=
+      ANYTYPE_KEYWORD
+    | DOT3
+    | typeExpr
+
+// Control flow prefixes
+ifPrefix ::= IF_KEYWORD LPAREN expr RPAREN ptrPayload? {
+    methods=[
+        condition="expr"
+    ]
 }
 
-private exprOrBlock ::= block | expr
+whilePrefix ::= WHILE_KEYWORD LPAREN expr RPAREN ptrPayload? whileContinueExpr?
 
-block ::= (symbol COLON_SYM)? LEFT_BRACE statement* RIGHT_BRACE {
-	mixin='org.ziglang.psi.impl.ZigBlockMixin'
+forPrefix ::= FOR_KEYWORD LPAREN expr RPAREN ptrIndexPayload
+
+// Payloads
+payload ::= PIPE symbol PIPE
+
+ptrPayload ::= PIPE ASTERISK? symbol PIPE
+
+ptrIndexPayload ::= PIPE ASTERISK? symbol (COMMA symbol)? PIPE
+
+// Switch specific
+switchProng ::= switchCase EQUALRARROW ptrPayload? assignExpr
+
+switchCase ::=
+      switchItem (COMMA switchItem)* COMMA?
+    | ELSE_KEYWORD
+
+switchItem ::= expr (DOT3 expr)?
+
+// Operators
+assignOp ::= ASTERISKEQUAL
+           | SLASHEQUAL
+           | PERCENTEQUAL
+           | PLUSEQUAL
+           | MINUSEQUAL
+           | LARROW2EQUAL
+           | RARROW2EQUAL
+           | AMPERSANDEQUAL
+           | CARETEQUAL
+           | PIPEEQUAL
+           | ASTERISKPERCENTEQUAL
+           | PLUSPERCENTEQUAL
+           | MINUSPERCENTEQUAL
+           | EQUAL
+
+compareOp ::= EQUALEQUAL
+            | EXCLAMATIONMARKEQUAL
+            | LARROW
+            | RARROW
+            | LARROWEQUAL
+            | RARROWEQUAL
+
+bitwiseOp ::= AMPERSAND
+            | CARET
+            | PIPE
+            | ORELSE_KEYWORD
+            | CATCH_KEYWORD payload?
+
+bitShiftOp ::= LARROW2
+             | RARROW2
+
+additionOp ::= PLUS
+             | MINUS
+             | PLUS2
+             | PLUSPERCENT
+             | MINUSPERCENT
+
+multiplyOp ::= PIPE2
+             | ASTERISK
+             | SLASH
+             | PERCENT
+             | ASTERISK2
+             | ASTERISKPERCENT
+
+prefixOp ::= EXCLAMATIONMARK
+           | MINUS
+           | TILDE
+           | MINUSPERCENT
+           | AMPERSAND
+           | TRY_KEYWORD
+           | AWAIT_KEYWORD
+
+prefixTypeOp ::= QUESTIONMARK
+               | ANYFRAME_KEYWORD MINUSRARROW
+               | arrayTypeStart (byteAlign | CONST_KEYWORD | VOLATILE_KEYWORD | ALLOWZERO_KEYWORD)*
+               | ptrTypeStart (ALIGN_KEYWORD LPAREN expr (COLON primaryIntExpr COLON primaryIntExpr)? RPAREN | CONST_KEYWORD | VOLATILE_KEYWORD | ALLOWZERO_KEYWORD)*
+
+suffixOp ::= LBRACKET expr (DOT2 expr?)? RBRACKET
+           | DOT symbol
+           | DOTASTERISK
+           | DOTQUESTIONMARK
+
+fnCallArguments  ::= LPAREN exprList RPAREN
+private exprList ::= (expr COMMA)* expr?
+
+// Ptr specific
+arrayTypeStart ::= LBRACKET expr? RBRACKET
+
+ptrTypeStart ::= ASTERISK
+               | ASTERISK2
+               | PTRUNKNOWN
+               | PTRC
+
+// ContainerDecl specific
+containerDeclAuto ::= containerDeclType LBRACE containerMembers RBRACE
+
+containerDeclType ::= (STRUCT_KEYWORD | ENUM_KEYWORD | OPAQUE_KEYWORD) (LPAREN expr RPAREN)?
+                    | UNION_KEYWORD (LPAREN (ENUM_KEYWORD (LPAREN expr RPAREN)? | expr) RPAREN)?
+
+// Alignment
+byteAlign ::= ALIGN_KEYWORD LPAREN expr RPAREN
+
+// Misc
+stringLiteralSimple ::= STRING_LITERAL_SINGLE {
+    extends=stringLiteral
+}
+stringLiteral ::= stringLiteralSimple | LINE_STRING {
+    mixin='org.ziglang.psi.impl.ZigStringMixin'
+    implements=['com.intellij.psi.PsiLanguageInjectionHost']
 }
 
-asmOutput ::= COLON_SYM (asmOutputItem (COMMA_SYM asmOutputItem)*)? asmInput?
-asmInput ::= COLON_SYM (asmInputItem (COMMA_SYM asmInputItem)*)? asmClobbers?
-asmOutputItem ::= LEFT_BRACKET symbol RIGHT_BRACKET string LEFT_PAREN (symbol | SMALL_ARROW_SYM typeExpr) RIGHT_PAREN
-asmInputItem ::= LEFT_BRACKET symbol RIGHT_BRACKET string LEFT_PAREN expr RIGHT_PAREN
-asmClobbers ::= COLON_SYM (string (COMMA_SYM string)*)?
-
-unwrapNullable ::= VERY_QUESTION_SYM expr
-unwrapError ::= CATCH_KEYWORD (SEP_SYM symbol SEP_SYM)? expr
-
-assignOperator ::=
-   EQ_SYM
- | TIMES_ASSIGN_SYM
- | DIV_ASSIGN_SYM
- | MOD_ASSIGN_SYM
- | PLUS_ASSIGN_SYM
- | STAR_ASSIGN_SYM
- | MINUS_ASSIGN_SYM
- | SHL_ASSIGN_SYM
- | SHR_ASSIGN_SYM
- | AND_ASSIGN_SYM
- | EXPONENT_ASSIGN_SYM
- | OR_ASSIGN_SYM
- | STAR_MOD_ASSIGN_SYM
- | PLUS_MOD_ASSIGN_SYM
- | MINUS_MOD_ASSIGN_SYM
-
-//BlockExpr(body) ::= Block | IfExpr(body) | IfErrorExpr(body) | TestExpr(body) | WhileExpr(body) | ForExpr(body) | switchExpr | CompTimeExpr(body) | SuspendExpr(body)
-//Bnf泛型编程(雾
-blockBlock ::=
-   block
- | ifBlock
- | ifErrorBlock
- | testBlock
- | whileBlock
- | forBlock
- | switchStatement
- | compTimeBlock
- | suspendBlock
-
-blockExpr ::=
-   block
- | ifExprOrBlock
- | ifErrorExprOrBlock
- | testExprOrBlock
- | whileExprOrBlock
- | forOrBlock
- | switchStatement
- | compTimeExprOrBlock
- | suspendExprOrBlock
-
-//CompTimeExpr(body) ::= "comptime" body
-compTimeBlock ::= COMPTIME_KEYWORD block
-compTimeExprOrBlock ::= COMPTIME_KEYWORD exprOrBlock
-
-switchStatement ::=
- SWITCH_KEYWORD
-  LEFT_PAREN expr RIGHT_PAREN
-  LEFT_BRACE switchProng* RIGHT_BRACE
-switchItem ::= expr (RANGE_SYM expr)?
-switchProng ::=
- (ELSE_KEYWORD | (switchItem (COMMA_SYM switchItem)*)?)
- ARROW_SYM
- (SEP_SYM STAR_SYM? symbol SEP_SYM)?
- expr COMMA_SYM
-
-//ForExpr(body) ::=
-// (symbol COLON_SYM)? INLINE_KEYWORD?
-// FOR_KEYWORD LEFT_PAREN expr RIGHT_PAREN
-//  option(SEP_SYM STAR_SYM? symbol option(COMMA_SYM symbol) SEP_SYM)
-//   body
-//  option(ELSE_KEYWORD BlockExpr(body))
-
-forBlock ::=
- (symbol COLON_SYM)? INLINE_KEYWORD?
- FOR_KEYWORD LEFT_PAREN expr RIGHT_PAREN
-  (SEP_SYM STAR_SYM? symbol (COMMA_SYM symbol)? SEP_SYM)?
-   block
-  (ELSE_KEYWORD blockBlock)?
-
-forOrBlock ::=
- (symbol COLON_SYM)? INLINE_KEYWORD?
- FOR_KEYWORD LEFT_PAREN expr RIGHT_PAREN
-  (SEP_SYM STAR_SYM? symbol (COMMA_SYM symbol)? SEP_SYM)?
-   exprOrBlock
-  (ELSE_KEYWORD blockExpr)?
-
-defer ::= (DEFER_KEYWORD | DEFERROR_KEYWORD) expr
-deferBlock ::= (DEFER_KEYWORD | DEFERROR_KEYWORD) block
-
-//IfExpr(body) ::= "if" LEFT_PAREN expr RIGHT_PAREN body option("else" BlockExpr(body))
-ifBlock ::=
- IF_KEYWORD LEFT_PAREN expr RIGHT_PAREN
-  block
- (ELSE_KEYWORD blockBlock)?
-ifExprOrBlock ::=
- IF_KEYWORD LEFT_PAREN expr RIGHT_PAREN
-  exprOrBlock
- (ELSE_KEYWORD exprOrBlock)?
-
-//SuspendExpr(body) ::= "suspend" option((SEP_SYM symbol SEP_SYM body))
-suspendBlock ::= SUSPEND_KEYWORD (SEP_SYM symbol SEP_SYM block)?
-suspendExprOrBlock ::= SUSPEND_KEYWORD (SEP_SYM symbol SEP_SYM exprOrBlock)?
-
-//IfErrorExpr(body) ::= "if" LEFT_PAREN expr RIGHT_PAREN option(SEP_SYM STAR_SYM? symbol SEP_SYM) body "else" SEP_SYM symbol SEP_SYM BlockExpr(body)
-ifErrorBlock ::=
- IF_KEYWORD LEFT_PAREN expr RIGHT_PAREN
- (SEP_SYM STAR_SYM? symbol SEP_SYM)?
-  block
- ELSE_KEYWORD SEP_SYM symbol SEP_SYM blockBlock
-ifErrorExprOrBlock ::=
- IF_KEYWORD LEFT_PAREN expr RIGHT_PAREN
- (SEP_SYM STAR_SYM? symbol SEP_SYM)?
-  exprOrBlock
- ELSE_KEYWORD SEP_SYM symbol SEP_SYM blockExpr
-
-//TestExpr(body) ::= "if" LEFT_PAREN expr RIGHT_PAREN option(SEP_SYM STAR_SYM? symbol SEP_SYM) body option("else" BlockExpr(body))
-testBlock ::=
- IF_KEYWORD LEFT_PAREN expr RIGHT_PAREN
- (SEP_SYM STAR_SYM? symbol SEP_SYM)?
-  block
- (ELSE_KEYWORD blockBlock)?
-testExprOrBlock ::=
- IF_KEYWORD LEFT_PAREN expr RIGHT_PAREN
- (SEP_SYM STAR_SYM? symbol SEP_SYM)?
-  exprOrBlock
- (ELSE_KEYWORD blockExpr)?
-
-//WhileExpr(body) ::= option(symbol COLON_SYM) option("inline") "while" LEFT_PAREN expr RIGHT_PAREN option(SEP_SYM STAR_SYM? symbol SEP_SYM) option(COLON_SYM LEFT_PAREN expr RIGHT_PAREN) body option("else" (SEP_SYM symbol SEP_SYM)? BlockExpr(body))
-whileBlock ::=
- (symbol COLON_SYM)? INLINE_KEYWORD?
- WHILE_KEYWORD LEFT_PAREN expr RIGHT_PAREN
-  (SEP_SYM STAR_SYM? symbol SEP_SYM)?
-  (COLON_SYM LEFT_PAREN expr RIGHT_PAREN)?
-   block
-  (ELSE_KEYWORD (SEP_SYM symbol SEP_SYM)? blockBlock)?
-
-whileExprOrBlock ::=
- (symbol COLON_SYM)? INLINE_KEYWORD?
- WHILE_KEYWORD LEFT_PAREN expr RIGHT_PAREN
-  (SEP_SYM STAR_SYM? symbol SEP_SYM)?
-  (COLON_SYM LEFT_PAREN expr RIGHT_PAREN)?
-   exprOrBlock
-
-expr ::=
-   tryExpr
- | returnExpr
- | breakExpr
- | assignExpr
- | cancelExpr
- | resumeExpr
- | awaitExpr
- | unwrapExpr
- | boolOrExpr
- | boolAndExpr
- | comparisonExpr
- | orElseExpr
- | binaryOrExpr
- | binaryXorExpr
- | binaryAndExpr
- | bitShiftExpr
- | additionExpr
- | multiplyExpr
- | curlySuffixExpr
- | typeExpr
- | prefixOpExpr
- | suffixOpExpr
- | asyncExpr
- | primary
-
-private primary ::=
-   integer
- | float
- | string
- | char
- | keywordLiteral
- | boolean
- | null
- | blockExpr
- | symbol
- | macroExpr
- | arrayExpr
- | fnProto
- | asmExpr
- | containerExpr
- | continueExpr
- | errorSetExpr
- | groupedExpr
-
-returnExpr ::= RETURN_KEYWORD expr?
-tryExpr ::= TRY_KEYWORD expr
-awaitExpr ::= AWAIT_KEYWORD expr
-breakExpr ::= BREAK_KEYWORD (COLON_SYM symbol)? expr?
-cancelExpr ::= CANCEL_KEYWORD expr
-resumeExpr ::= RESUME_KEYWORD expr
-assignExpr ::= expr assignOperator expr
-unwrapExpr ::= expr (unwrapNullable | unwrapError)
-boolOrExpr ::= expr OR_KEYWORD expr
-boolAndExpr ::= expr AND_KEYWORD expr
-comparisonExpr ::= expr comparisonOperator expr
-orElseExpr ::= expr ORELSE_KEYWORD expr
-binaryOrExpr ::= expr SEP_SYM expr
-binaryXorExpr ::= expr EXPONENT_SYM expr
-binaryAndExpr ::= expr AND_SYM expr
-bitShiftExpr ::= expr bitShiftOperator expr
-additionExpr ::= expr additionOperator expr
-multiplyExpr ::= expr multiplyOperator expr
-curlySuffixExpr ::= expr containerInitSuffix
-typeExpr ::= expr NOT_SYM expr
-prefixOpExpr ::= prefixOp expr
-asyncExpr ::= ASYNC_KEYWORD (LT_SYM primary GT_SYM)? primary fnCallSuffix
-suffixOpExpr ::=
- expr
- (
-   fnCallSuffix
- | arrayAccessSuffix
- | fieldAccessSuffix
- | sliceSuffix
- | pointerSuffix
- | optionalSuffix
- )
-
-fieldAccessSuffix ::= DOT_SYM symbol
-pointerSuffix ::= DOT_SYM STAR_SYM
-optionalSuffix ::= DOT_SYM QUESTION_SYM
-fnCallSuffix ::= LEFT_PAREN (expr (COMMA_SYM expr)*)? RIGHT_PAREN
-arrayAccessSuffix ::= LEFT_BRACKET expr RIGHT_BRACKET
-sliceSuffix ::= LEFT_BRACKET expr SLICE_SYM expr? RIGHT_BRACKET
-containerInitSuffix ::= LEFT_BRACE (containerInitBody COMMA_SYM?)? RIGHT_BRACE
-
-bitShiftOperator ::= SHL_SYM | SHR_SYM
-additionOperator ::= PLUS_SYM | MINUS_SYM | INC_SYM | PLUS_MOD_SYM | MINUS_MOD_SYM
-multiplyOperator ::= SEP_SEP_SYM | STAR_SYM | DIV_SYM | MOD_SYM | STAR_STAR_SYM | STAR_MOD_SYM
-comparisonOperator ::=
-   EQUAL_SYM
- | UNEQUAL_SYM
- | LT_SYM
- | GT_SYM
- | LE_SYM
- | GE_SYM
-
-containerInitBody ::=
-   structLiteralField (COMMA_SYM structLiteralField)*
- | expr (COMMA_SYM expr)*
-
-structLiteralField ::= DOT_SYM symbol EQ_SYM expr
-
-prefixOp ::=
-   NOT_SYM
- | MINUS_SYM
- | BITWISE_NOT_SYM
- | STAR_SYM
- | AND_SYM
- ( ALIGN_KEYWORD LEFT_PAREN
-   expr (COLON_SYM integer COLON_SYM integer)? RIGHT_PAREN
- )? CONST_KEYWORD? VOLATILE_KEYWORD?
- | QUESTION_SYM
- | VERY_QUESTION_SYM
- | MINUS_MOD_SYM
- | TRY_KEYWORD
- | AWAIT_KEYWORD
-
-asmExpr ::=
- ASM_KEYWORD VOLATILE_KEYWORD?
- LEFT_PAREN string asmOutput? RIGHT_PAREN
-arrayExpr ::=
- LEFT_BRACKET expr? RIGHT_BRACKET
- (ALIGN_KEYWORD LEFT_PAREN expr (COLON_SYM integer COLON_SYM integer)? RIGHT_PAREN)?
- CONST_KEYWORD? VOLATILE_KEYWORD? typeExpr {
-	extends=expr
+symbol ::= IDENTIFIER {
+    extends=expr
+    implements=['org.ziglang.psi.impl.IZigSymbol']
+    mixin='org.ziglang.psi.impl.ZigSymbolMixin'
 }
-
-macroExpr ::= AT_SYM BUILTIN_FUNCTION fnCallSuffix { pin=1 }
-groupedExpr ::= LEFT_PAREN expr RIGHT_PAREN
-continueExpr ::= CONTINUE_KEYWORD (COLON_SYM symbol)?
-integer ::= INT_LITERAL { extends=expr }
-float ::= FLOAT_LITERAL { extends=expr }
-boolean ::= TRUE_KEYWORD | FALSE_KEYWORD { extends=expr }
-null ::= NULL_KEYWORD { extends=expr }
-char ::= CHAR_LITERAL { extends=expr }
-keywordLiteral ::=
-   UNDEFINED_KEYWORD
- | ERROR_KEYWORD
- | THIS_KEYWORD
- | UNREACHABLE_KEYWORD
- | SUSPEND_KEYWORD {
-	extends=expr
-}
-
-errorSetExpr ::=
- ERROR_KEYWORD
- LEFT_BRACE (symbol (COMMA_SYM symbol)*)? RIGHT_BRACE {
-	extends=expr
-}
-
-containerExpr ::=
- (EXTERN_KEYWORD | PACKED_KEYWORD)?
- ( STRUCT_KEYWORD groupedExpr?
- | UNION_KEYWORD (ENUM_KEYWORD groupedExpr? | groupedExpr)?
- | ENUM_KEYWORD groupedExpr?
- )
- LEFT_BRACE containerMember* RIGHT_BRACE
-

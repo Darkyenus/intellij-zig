@@ -16,22 +16,18 @@ class ZigStructureViewModel(root: PsiFile, editor: Editor?) :
 		StructureViewModel.ElementInfoProvider {
 	init {
 		withSuitableClasses(
-				ZigFnDeclaration::class.java,
-				ZigExternDeclaration::class.java,
+				ZigGlobalFnDeclaration::class.java,
+				ZigGlobalFnPrototype::class.java,
 				ZigGlobalVarDeclaration::class.java,
-				ZigUseDeclaration::class.java,
-				ZigIfBlock::class.java,
-				ZigIfExprOrBlock::class.java,
-				ZigIfErrorBlock::class.java,
-				ZigIfExprOrBlock::class.java,
-				ZigTestBlock::class.java,
-				ZigTestExprOrBlock::class.java
+				ZigGlobalUsingNamespace::class.java,
+				ZigTestDecl::class.java,
+				ZigTopLevelComptime::class.java
 		)
 	}
 
 	override fun shouldEnterElement(element: Any?) = true
 	override fun isAlwaysShowsPlus(element: StructureViewTreeElement?) = false
-	override fun isAlwaysLeaf(element: StructureViewTreeElement?) = element is ZigFnDeclaration
+	override fun isAlwaysLeaf(element: StructureViewTreeElement?) = element is ZigGlobalFnDeclaration
 }
 
 class ZigStructureViewElement(private val root: NavigatablePsiElement) :
@@ -39,12 +35,12 @@ class ZigStructureViewElement(private val root: NavigatablePsiElement) :
 	override fun getLocationString() = ""
 	override fun getIcon(open: Boolean) = when (root) {
 		is ZigFile -> ZigIcons.ZIG_FILE
-		is ZigFnDeclaration -> ZigIcons.ZIG_FUN
+		is ZigGlobalFnDeclaration -> ZigIcons.ZIG_FUN
 		is ZigGlobalVarDeclaration -> ZigIcons.ZIG_VAR
 		else -> ZigIcons.ZIG_BIG_ICON
 	}
 
-	//返回显示的字符串吧, 60应该是字符上限
+	// Return the displayed string, 60 should be the upper limit of characters
 	override fun getPresentableText() = cutText(root.presentText(), 60)
 
 	override fun getPresentation() = this

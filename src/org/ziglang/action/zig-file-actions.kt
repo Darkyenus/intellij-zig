@@ -84,11 +84,11 @@ class ZigBuildAction : ZigAction(
 		val project = e.project ?: return
 		val file = CommonDataKeys.VIRTUAL_FILE.getData(e.dataContext) ?: return
 		val path = file.path.trimPath()
-		val executor = ExecutorRegistry.getInstance().getExecutorById(DefaultRunExecutor.EXECUTOR_ID)
+		val executor = ExecutorRegistry.getInstance().getExecutorById(DefaultRunExecutor.EXECUTOR_ID)!!
 		val configuration = RunManager
 				.getInstance(project)
 				.let {
-					it.createRunConfiguration(
+					it.createConfiguration(
 							"build${Files.getNameWithoutExtension(path)}",
 							ZigRunConfigurationType.configurationFactories[0]
 					).apply {
