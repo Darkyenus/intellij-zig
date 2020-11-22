@@ -1,13 +1,21 @@
 package org.ziglang.editing
 
-import com.intellij.codeInsight.completion.*
+import com.intellij.codeInsight.completion.CompletionContributor
+import com.intellij.codeInsight.completion.CompletionParameters
+import com.intellij.codeInsight.completion.CompletionProvider
+import com.intellij.codeInsight.completion.CompletionResultSet
+import com.intellij.codeInsight.completion.CompletionType
+import com.intellij.codeInsight.editorActions.TypedHandlerDelegate
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.project.Project
 import com.intellij.patterns.PlatformPatterns.psiElement
-import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
 import com.intellij.util.ProcessingContext
 import icons.ZigIcons
 import org.ziglang.ZigBundle
+import org.ziglang.ZigFileType
 import org.ziglang.builtinFunctions
 import org.ziglang.psi.ZigTypes
 
@@ -80,10 +88,6 @@ class ZigCompletionContributor : CompletionContributor() {
 		}
 	}
 
-	override fun invokeAutoPopup(position: PsiElement, typeChar: Char): Boolean {
-		return typeChar in "@.(" || super.invokeAutoPopup(position, typeChar)
-	}
-
 	init {
 		extend(CompletionType.BASIC,
 				psiElement(ZigTypes.IDENTIFIER)
@@ -102,6 +106,19 @@ class ZigCompletionContributor : CompletionContributor() {
 				psiElement(ZigTypes.BUILTIN_IDENTIFIER)
 						.andNot(psiElement().afterLeaf(".")),
 				ZigCompletionProvider(BUILTIN_FUNCTIONS))
+	}
+}
+
+class ZigTypedHandlerDelegate : TypedHandlerDelegate() {
+	override fun checkAutoPopup(charTyped: Char, project: Project, editor: Editor, file: PsiFile): Result {
+		if (file.fileType == ZigFileType) {
+			return if (charTyped in "@.(") {
+				Result.CONTINUE
+			} else {
+				Result.STOP
+			}
+		}
+		return super.checkAutoPopup(charTyped, project, editor, file)
 	}
 }
 

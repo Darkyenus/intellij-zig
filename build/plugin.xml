@@ -41,6 +41,7 @@
 		<completion.contributor
 				language="Zig"
 				implementationClass="org.ziglang.editing.ZigCompletionContributor"/>
+		<typedHandler implementation="org.ziglang.editing.ZigTypedHandlerDelegate"/>
 		<spellchecker.support
 				language="Zig"
 				implementationClass="org.ziglang.editing.ZigSpellcheckerStrategy"/>

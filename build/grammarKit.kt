@@ -13,7 +13,7 @@ import wemi.run.prepareJavaProcess
 import wemi.run.runForegroundProcess
 import wemi.util.absolutePath
 import wemi.util.name
-import wemiplugin.intellij.IntelliJ
+import wemiplugin.intellij.IntelliJ.intellijResolvedIdeDependency
 
 private val LOG = LoggerFactory.getLogger("grammarKit")
 
@@ -128,7 +128,7 @@ fun BindingHolder.generateParser(source:Path) {
 				return false;
 			})*/
 
-		classpath.addAll(IntelliJ.resolvedIntellijIdeDependency.get().jarFiles)
+		classpath.addAll(intellijResolvedIdeDependency.get().jarFiles)
 
 		LOG.debug("Parser classpath: {}", classpath)
 

@@ -3,10 +3,20 @@ package org.ziglang.editing
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
+import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.psi.PsiElement
-import org.ziglang.*
-import org.ziglang.psi.*
+import org.ziglang.ZigBundle
+import org.ziglang.ZigSyntaxHighlighter
+import org.ziglang.builtinFunctions
+import org.ziglang.psi.ZigExpr
+import org.ziglang.psi.ZigIfPrefix
+import org.ziglang.psi.ZigPrimaryBoolExpr
+import org.ziglang.psi.ZigPrimaryBuiltinExpr
+import org.ziglang.psi.ZigStringLiteral
+import org.ziglang.psi.ZigSymbol
+import org.ziglang.psi.ZigTestDecl
 import org.ziglang.psi.impl.firstExprOrNull
+import org.ziglang.subRange
 import java.util.regex.Pattern
 import kotlin.math.min
 
@@ -38,25 +48,31 @@ class ZigAnnotator : Annotator {
 	private fun macroExpr(macroExpr: ZigPrimaryBuiltinExpr, holder: AnnotationHolder) {
 		val builtin = macroExpr.builtin
 		val builtinName = builtin.text.removePrefix("@")
-		if (builtinName !in builtinFunctions)
-			holder.createErrorAnnotation(builtin, ZigBundle.message("zig.lint.unknown-builtin-symbol")).apply {
-				highlightType = ProblemHighlightType.LIKE_UNKNOWN_SYMBOL
-				//registerFix(ZigRemoveElementIntention(`@`, ZigBundle.message("zig.lint.un-builtin")))
-			}
+		if (builtinName !in builtinFunctions) {
+			holder.newAnnotation(HighlightSeverity.ERROR, ZigBundle.message("zig.lint.unknown-builtin-symbol"))
+					.range(builtin)
+					.highlightType(ProblemHighlightType.LIKE_UNKNOWN_SYMBOL)
+					.create()
+			// registerFix(ZigRemoveElementIntention(`@`, ZigBundle.message("zig.lint.un-builtin")))
+		}
 	}
 
 	private fun symbol(element: ZigSymbol, holder: AnnotationHolder) {
 		when {
 			element.isFunctionName ->
-				holder.createInfoAnnotation(element, null)
-						.textAttributes = ZigSyntaxHighlighter.FUNCTION_DECLARATION
+				holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+						.range(element)
+						.textAttributes(ZigSyntaxHighlighter.FUNCTION_DECLARATION)
+						.create()
 		}
 	}
 
 	private fun ifExpr(condition: ZigExpr?, holder: AnnotationHolder) {
 		when {
 			condition is ZigPrimaryBoolExpr ->
-				holder.createWarningAnnotation(condition, ZigBundle.message("zig.lint.const-condition", condition.text))
+				holder.newAnnotation(HighlightSeverity.WARNING, ZigBundle.message("zig.lint.const-condition", condition.text))
+						.range(condition)
+						.create()
 		}
 	}
 
@@ -77,14 +93,18 @@ class ZigAnnotator : Annotator {
 					isEmpty() || all { it in "0123456789ABCDEFabcdef" }
 				}
 
-				if (accept) holder.createInfoAnnotation(element.textRange.subRange(start, end + nextCount), null)
-						.textAttributes = ZigSyntaxHighlighter.STRING_ESCAPE
+				if (accept) {
+					holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+							.range(element.textRange.subRange(start, end + nextCount))
+							.textAttributes(ZigSyntaxHighlighter.STRING_ESCAPE)
+							.create()
+				}
 				continue
 			}
-			holder.createErrorAnnotation(
-					element.textRange.subRange(start, end),
-					ZigBundle.message("zig.lint.illegal-escape")
-			).textAttributes = ZigSyntaxHighlighter.STRING_ESCAPE_INVALID
+			holder.newAnnotation(HighlightSeverity.ERROR, ZigBundle.message("zig.lint.illegal-escape"))
+					.range(element.textRange.subRange(start, end))
+					.textAttributes(ZigSyntaxHighlighter.STRING_ESCAPE_INVALID)
+					.create()
 		}
 	}
 }
