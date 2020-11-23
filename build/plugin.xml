@@ -2,7 +2,7 @@
 	<name>Zig</name>
 	<vendor email="ice1000kotlin@foxmail.com" url="https://ziglang.org/">ice1000</vendor>
 
-	<idea-version since-build="173.0"/>
+	<idea-version since-build="201.8743.12"/>
 
 	<depends>com.intellij.modules.lang</depends>
 
@@ -97,9 +97,6 @@
 				text="Zig"
 				description="Zig related tools"
 				popup="true">
-			<action
-					id="Zig.Tools.ShowZen"
-					class="org.ziglang.action.ZigZenAction"/>
 			<action
 					id="Zig.Tools.TranslateC"
 					class="org.ziglang.action.ZigTranslateFromCAction">
