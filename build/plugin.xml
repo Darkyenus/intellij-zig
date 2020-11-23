@@ -13,10 +13,12 @@
 		<additionalTextAttributes scheme="Default" file="/colorSchemes/Zig.xml"/>
 		<colorSettingsPage implementation="org.ziglang.ZigColorSettingsPage"/>
 		<errorHandler implementation="org.ziglang.error.GitHubErrorReporter"/>
-		<fileTypeFactory implementation="org.ziglang.ZigFileTypeFactory"/>
+		<fileType name="Zig" language="Zig" extensions="zig" implementationClass="org.ziglang.ZigFileType" fieldName="INSTANCE"/>
 		<sdkType implementation="org.ziglang.project.ZigSdkType"/>
+
+		<defaultLiveTemplates file="liveTemplates/Zig.xml"/>
 		<liveTemplateContext implementation="org.ziglang.ZigContext"/>
-		<defaultLiveTemplatesProvider implementation="org.ziglang.ZigLiveTemplateProvider"/>
+
 		<directoryProjectGenerator implementation="org.ziglang.project.ZigProjectGenerator"/>
 		<runConfigurationProducer implementation="org.ziglang.execution.ZigRunConfigurationProducer"/>
 		<configurationType implementation="org.ziglang.execution.ZigRunConfigurationType"/>

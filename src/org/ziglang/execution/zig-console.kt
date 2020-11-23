@@ -1,7 +1,14 @@
 package org.ziglang.execution
 
-import com.intellij.execution.filters.*
+import com.intellij.execution.filters.ConsoleFilterProviderEx
+import com.intellij.execution.filters.Filter
+import com.intellij.execution.filters.OpenFileHyperlinkInfo
+import com.intellij.execution.filters.UrlFilter
+import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.rootManager
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.GlobalSearchScope
 import java.util.regex.Pattern
 
@@ -16,7 +23,7 @@ class ZigConsoleFilter(private val project: Project) : Filter {
 		val matcher = ERROR_FILE_LOCATION.matcher(line)
 		if (!matcher.lookingAt()) return null
 		val resultFilePath = matcher.group(1)
-		val resultFile = project.baseDir.fileSystem.findFileByPath(resultFilePath) ?: return null
+		val resultFile = findFileByPath(resultFilePath) ?: return null
 		val lineNumber = matcher.group(2).toIntOrNull() ?: return null
 		val columnNumber = matcher.group(3).toIntOrNull() ?: return null
 		return Filter.Result(
@@ -29,6 +36,21 @@ class ZigConsoleFilter(private val project: Project) : Filter {
 						columnNumber
 				)
 		)
+	}
+
+	private fun findFileByPath(path:String): VirtualFile? {
+		LocalFileSystem.getInstance().findFileByPath(path)?.let { return it }
+
+		for (module in ModuleManager.getInstance(project).modules) {
+			for (contentRoot in module.rootManager.contentRoots) {
+				val found = contentRoot.fileSystem.findFileByPath(path)
+				if (found != null) {
+					return found
+				}
+			}
+		}
+
+		return null
 	}
 }
 

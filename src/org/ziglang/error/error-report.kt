@@ -21,19 +21,23 @@
 
 package org.ziglang.error
 
-import com.intellij.CommonBundle
+import com.intellij.AbstractBundle
 import com.intellij.diagnostic.AbstractMessage
-import com.intellij.diagnostic.IdeErrorsDialog
 import com.intellij.diagnostic.ReportMessages
 import com.intellij.ide.DataManager
-import com.intellij.ide.plugins.PluginManager
+import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.ide.plugins.PluginUtil
 import com.intellij.idea.IdeaLogger
 import com.intellij.notification.NotificationListener
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationNamesInfo
 import com.intellij.openapi.application.ex.ApplicationInfoEx
-import com.intellij.openapi.diagnostic.*
+import com.intellij.openapi.diagnostic.Attachment
+import com.intellij.openapi.diagnostic.ErrorReportSubmitter
+import com.intellij.openapi.diagnostic.IdeaLoggingEvent
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.SubmittedReportInfo
 import com.intellij.openapi.diagnostic.SubmittedReportInfo.SubmissionStatus
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.progress.EmptyProgressIndicator
@@ -80,7 +84,7 @@ private object AnonymousFeedback {
 	 * @return The report info that is then used in [GitHubErrorReporter] to show the user a balloon with the link
 	 * of the created issue.
 	 */
-	internal fun sendFeedback(environmentDetails: MutableMap<String, String>): SubmittedReportInfo {
+	fun sendFeedback(environmentDetails: MutableMap<String, String>): SubmittedReportInfo {
 		val logger = Logger.getInstance(javaClass.name)
 		try {
 			val resource: URL? = javaClass.classLoader.getResource(tokenFile)
@@ -114,7 +118,7 @@ private object AnonymousFeedback {
 	private fun findFirstDuplicate(uniqueTitle: String, service: IssueService, repo: RepositoryId): Issue? {
 		val searchParameters = HashMap<String, String>(2)
 		searchParameters[IssueService.FILTER_STATE] = IssueService.STATE_OPEN
-		return service.pageIssues(repo, searchParameters).flatMap { it }.firstOrNull { it.title == uniqueTitle }
+		return service.pageIssues(repo, searchParameters).flatten().firstOrNull { it.title == uniqueTitle }
 	}
 
 	private fun createNewGibHubIssue(details: MutableMap<String, String>) = Issue().apply {
@@ -184,8 +188,8 @@ class GitHubErrorReporter : ErrorReportSubmitter() {
 				IdeaLogger.ourLastActionId.orEmpty(),
 				description ?: "<No description>",
 				event.message ?: event.throwable.message.toString())
-		IdeErrorsDialog.findPluginId(event.throwable)?.let { pluginId ->
-			PluginManager.getPlugin(pluginId)?.let { ideaPluginDescriptor ->
+		PluginUtil.getInstance().findPluginId(event.throwable)?.let { pluginId ->
+			PluginManagerCore.getPlugin(pluginId)?.let { ideaPluginDescriptor ->
 				if (!ideaPluginDescriptor.isBundled) {
 					bean.pluginName = ideaPluginDescriptor.name
 					bean.pluginVersion = ideaPluginDescriptor.version
@@ -212,10 +216,13 @@ class GitHubErrorReporter : ErrorReportSubmitter() {
 			private val project: Project?) : Consumer<SubmittedReportInfo> {
 		override fun consume(reportInfo: SubmittedReportInfo) {
 			consumer.consume(reportInfo)
-			if (reportInfo.status == SubmissionStatus.FAILED) ReportMessages.GROUP.createNotification(ReportMessages.ERROR_REPORT,
-					reportInfo.linkText, NotificationType.ERROR, null).setImportant(false).notify(project)
-			else ReportMessages.GROUP.createNotification(ReportMessages.ERROR_REPORT, reportInfo.linkText,
-					NotificationType.INFORMATION, NotificationListener.URL_OPENING_LISTENER).setImportant(false).notify(project)
+			if (reportInfo.status == SubmissionStatus.FAILED) {
+				ReportMessages.GROUP.createNotification(ReportMessages.getErrorReport(),
+						reportInfo.linkText, NotificationType.ERROR, null).setImportant(false).notify(project)
+			} else {
+				ReportMessages.GROUP.createNotification(ReportMessages.getErrorReport(), reportInfo.linkText,
+						NotificationType.INFORMATION, NotificationListener.URL_OPENING_LISTENER).setImportant(false).notify(project)
+			}
 		}
 	}
 }
@@ -253,8 +260,8 @@ private object ErrorReportBundle {
 	private val bundle: ResourceBundle by lazy { ResourceBundle.getBundle(BUNDLE) }
 
 	@JvmStatic
-	internal fun message(@PropertyKey(resourceBundle = BUNDLE) key: String, vararg params: Any) =
-			CommonBundle.message(bundle, key, *params)
+	fun message(@PropertyKey(resourceBundle = BUNDLE) key: String, vararg params: Any) =
+			AbstractBundle.message(bundle, key, *params)
 }
 
 private class AnonymousFeedbackTask(
@@ -275,7 +282,7 @@ private fun getKeyValuePairs(
 		error: GitHubErrorBean,
 		appInfo: ApplicationInfoEx,
 		namesInfo: ApplicationNamesInfo): MutableMap<String, String> {
-	PluginManager.getPlugin(PluginId.findId(ZIG_PLUGIN_ID))?.run {
+	PluginManagerCore.getPlugin(PluginId.findId(ZIG_PLUGIN_ID))?.run {
 		if (error.pluginName.isBlank()) error.pluginName = name
 		if (error.pluginVersion.isBlank()) error.pluginVersion = version
 	}
