@@ -23,6 +23,13 @@ import org.ziglang.ZigTokenType;
 OTHERWISE=[^]
 
 HEX=[0-9a-fA-F]
+HEX_= ( "_" | {HEX} )
+DEC = [0-9]
+DEC_ = ( "_" | {DEC} )
+
+DEC_INT = {DEC} ({DEC_}* {DEC})?
+HEX_INT = {HEX} ({HEX_}* {HEX})?
+
 CHAR_ESCAPE = ( "\x" {HEX} {HEX} | "\u\{" {HEX}+ "}" | "\\" [nr\\t'\"] )
 CHAR_CHAR = ({CHAR_ESCAPE} | [^\\'\n])
 STRING_CHAR = ({CHAR_ESCAPE} | [^\\\"\n])
@@ -32,16 +39,16 @@ LINE_STRING = ("\\" [^\n]* [ \n]*)+
 CHAR_LITERAL = "'" {CHAR_CHAR} "'"
 INCOMPLETE_CHAR = "'" {CHAR_CHAR}
 FLOAT_LITERAL = (
-      "0x" {HEX}+ "." {HEX}+  ([pP] [-+]? {HEX}+)?
-    |      [0-9]+ "." [0-9]+  ([eE] [-+]? [0-9]+)?
-    | "0x" {HEX}+ "."?         [pP] [-+]? {HEX}+
-    |      [0-9]+ "."?         [eE] [-+]? [0-9]+
+      "0x" {HEX_}* {HEX} "." {HEX_INT}  ([pP] [-+]? {HEX_INT})?
+    |      {DEC_INT}     "." {DEC_INT}  ([eE] [-+]? {DEC_INT})?
+    | "0x" {HEX_}* {HEX} "."?         [pP] [-+]? {HEX_INT}
+    |      {DEC_INT}     "."?         [eE] [-+]? {DEC_INT}
 )
 INTEGER_LITERAL = (
-      "0b" [01]+
-    | "0o" [0-7]+
-    | "0x" {HEX}+
-    |      [0-9]+
+      "0b" [_01]* [01]
+    | "0o" [_0-7]+ [0-7]
+    | "0x" {HEX_}* {HEX}
+    |      {DEC_INT}
 )
 STRING_LITERAL_SINGLE = "\"" {STRING_CHAR}* "\""
 INCOMPLETE_STRING     = "\"" {STRING_CHAR}*
@@ -103,8 +110,7 @@ INVALID_WHITESPACE = [\s\f\r\t]+
 "+="   { return ZigTypes.PLUSEQUAL; }
 "+%"   { return ZigTypes.PLUSPERCENT; }
 "+%="  { return ZigTypes.PLUSPERCENTEQUAL; }
-"[*c]" { return ZigTypes.PTRC; }
-"[*]"  { return ZigTypes.PTRUNKNOWN; }
+"c"    { return ZigTypes.LETTERC; }
 "?"    { return ZigTypes.QUESTIONMARK; }
 ">"    { return ZigTypes.RARROW; }
 ">>"   { return ZigTypes.RARROW2; }
@@ -127,6 +133,7 @@ asm             { return ZigTypes.ASM_KEYWORD; }
 async           { return ZigTypes.ASYNC_KEYWORD; }
 await           { return ZigTypes.AWAIT_KEYWORD; }
 break           { return ZigTypes.BREAK_KEYWORD; }
+callconv        { return ZigTypes.CALLCONV_KEYWORD; }
 catch           { return ZigTypes.CATCH_KEYWORD; }
 comptime        { return ZigTypes.COMPTIME_KEYWORD; }
 const           { return ZigTypes.CONST_KEYWORD; }
@@ -144,7 +151,8 @@ for             { return ZigTypes.FOR_KEYWORD; }
 if              { return ZigTypes.IF_KEYWORD; }
 inline          { return ZigTypes.INLINE_KEYWORD; }
 noalias         { return ZigTypes.NOALIAS_KEYWORD; }
-nosuspend       { return ZigTypes.NOSUSPEND_KEYWORD; } // Not in official keyword macro, probably oversight
+nosuspend       { return ZigTypes.NOSUSPEND_KEYWORD; }
+noinline        { return ZigTypes.NOINLINE_KEYWORD; }
 null            { return ZigTypes.NULL_KEYWORD; }
 opaque          { return ZigTypes.OPAQUE_KEYWORD; }
 or              { return ZigTypes.OR_KEYWORD; }

@@ -10,7 +10,7 @@ fun PsiElement.presentText() = when (this) {
 	is ZigGlobalFnDeclaration -> "fn ${functionPrototype.name}()"
 	is ZigGlobalFnPrototype -> "fn ${functionPrototype.name}()"
 	is ZigGlobalVarDeclaration -> "${if (varDecl.isConst) "const" else "var"} ${varDecl.name}"
-	is ZigGlobalUsingNamespace -> "usingnamespace ${expr.text}"
+	is ZigGlobalUsingNamespace -> "usingnamespace ${expr?.text ?: "???"}"
 	else -> text
 }
 

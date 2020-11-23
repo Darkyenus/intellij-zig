@@ -10,7 +10,6 @@ import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.ui.ComboboxWithBrowseButton
 import com.intellij.ui.components.labels.LinkLabel
-import com.intellij.ui.components.labels.LinkListener
 import org.ziglang.ZigBundle
 import org.ziglang.executeCommand
 import java.nio.file.Files
@@ -21,7 +20,7 @@ val zigPath: String by lazy {
 	PathEnvironmentVariableUtil.findInPath("zig")?.absolutePath
 			?: when {
 				SystemInfo.isWindows -> "C://Program Files/"
-				SystemInfo.isMac -> "C://Program Files/" // TODO
+				SystemInfo.isMac -> "/usr/local/bin/zig" // Homebrew path
 				else -> "/usr/bin/zig"
 			}
 }

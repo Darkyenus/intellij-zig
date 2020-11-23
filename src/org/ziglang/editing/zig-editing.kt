@@ -85,6 +85,7 @@ class ZigSpellcheckerStrategy : SpellcheckingStrategy() {
 }
 
 class ZigFolderBuilder : FoldingBuilderEx(), DumbAware {
+
 	class ZigFoldingDescriptor(element: PsiElement, private val holder: String)
 		: FoldingDescriptor(element.node, element.textRange) {
 		override fun getPlaceholderText() = holder
@@ -94,7 +95,7 @@ class ZigFolderBuilder : FoldingBuilderEx(), DumbAware {
 	override fun buildFoldRegions(
 			root: PsiElement, document: Document, quick: Boolean) = SyntaxTraverser
 			.psiTraverser(root)
-			.filter { it is ZigBlock || it is ZigErrorSetDecl }
+			.filter { (it is ZigBlock || it is ZigErrorSetDecl) && (it.textRange.length > 0) }
 			.map { ZigFoldingDescriptor(it, if (it is ZigErrorSetDecl) "error …" else "{…}") }
 			.toList().toTypedArray()
 
@@ -112,7 +113,7 @@ class ZigBreadcrumbsProvider : BreadcrumbsProvider {
 	override fun getElementInfo(element: PsiElement) = cutText(when (element) {
 		is ZigGlobalFnDeclaration -> element.functionPrototype.text()
 		is ZigGlobalFnPrototype -> element.functionPrototype.text()
-		is ZigTestDecl -> element.testName.text
+		is ZigTestDecl -> element.testName?.text ?: "???"
 		is ZigTopLevelComptime -> "comptime"
 		is ZigBlock -> element.firstChild.text
 		is ZigBlockExpr -> "{…}"

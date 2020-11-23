@@ -25,9 +25,14 @@ testDecl ::= TEST_KEYWORD stringLiteralSimple block {
     methods = [
         testName="stringLiteralSimple"
     ]
+    pin = 1
+    name = "Test"
 }
 
-topLevelComptime ::= COMPTIME_KEYWORD block
+topLevelComptime ::= COMPTIME_KEYWORD block {
+    pin = 1
+    name = "Top level comptime"
+}
 
 private topLevelDecl ::= ( // TopLevelDecl
       globalFnPrototype
@@ -36,11 +41,12 @@ private topLevelDecl ::= ( // TopLevelDecl
     | globalUsingNamespace
     )
 
-globalFnPrototype ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple? | INLINE_KEYWORD)? fnProto SEMICOLON {
+globalFnPrototype ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple? | INLINE_KEYWORD | NOINLINE_KEYWORD)? fnProto SEMICOLON {
     methods=[
         functionPrototype="fnProto"
         extern="stringLiteralSimple"
     ]
+    name = "Function Prototype"
 }
 globalFnDeclaration ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple? | INLINE_KEYWORD)? fnProto block {
     mixin='org.ziglang.psi.impl.ZigFnDeclarationMixin'
@@ -48,26 +54,41 @@ globalFnDeclaration ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLite
         functionPrototype="fnProto"
         extern="stringLiteralSimple"
     ]
+    name = "Function Declaration"
 }
 globalVarDeclaration ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple?)? THREADLOCAL_KEYWORD? varDecl {
     methods=[
         extern="stringLiteralSimple"
     ]
+    name = "Global Variable"
 }
-globalUsingNamespace ::= PUB_KEYWORD? USINGNAMESPACE_KEYWORD expr SEMICOLON
+globalUsingNamespace ::= PUB_KEYWORD? USINGNAMESPACE_KEYWORD expr SEMICOLON {
+    pin = "USINGNAMESPACE_KEYWORD"
+    name = "Using Namespace Directive"
+}
 
-fnProto ::= FN_KEYWORD symbol? LPAREN paramDeclList RPAREN byteAlign? linkSection? EXCLAMATIONMARK? (ANYTYPE_KEYWORD | typeExpr) {
+fnProto ::= FN_KEYWORD symbol? LPAREN paramDeclList RPAREN byteAlign? linkSection? callConv? EXCLAMATIONMARK? (ANYTYPE_KEYWORD | typeExpr) {
     implements=['com.intellij.psi.PsiNameIdentifierOwner']
     mixin='org.ziglang.psi.impl.TrivialDeclaration'
+    pin = 1
+    name = "Function Type"
 }
-private paramDeclList ::= (paramDecl COMMA)* paramDecl?
+private paramDeclList ::= (paramDecl COMMA)* paramDecl? {
+    name = "Parameter Declaration List"
+    pin = 1
+}
 
 varDecl ::= (CONST_KEYWORD | VAR_KEYWORD) symbol (COLON typeExpr)? byteAlign? linkSection? (EQUAL expr)? SEMICOLON {
 	implements=['com.intellij.psi.PsiNameIdentifierOwner'; 'org.ziglang.psi.impl.IZigVariableDeclaration']
 	mixin='org.ziglang.psi.impl.ZigVariableDeclarationMixin'
+	pin = 1
+	name = "Variable Declaration"
 }
 
-containerField ::= COMPTIME_KEYWORD? symbol (COLON typeExpr)? (EQUAL expr)?
+containerField ::= COMPTIME_KEYWORD? symbol (COLON typeExpr byteAlign?)? (EQUAL expr)? {
+    pin = "symbol"
+    name = "Field"
+}
 
 // Block level
 statement ::=
@@ -82,31 +103,52 @@ statement ::=
     | switchExpr
     | assignExpr SEMICOLON {
     pin=1
+    name = "Statement"
 }
 
-variableDeclarationStatement ::= COMPTIME_KEYWORD? varDecl
+variableDeclarationStatement ::= COMPTIME_KEYWORD? varDecl {
+    name = "Variable Declaration Statement"
+}
 
 ifStatement ::=
       ifPrefix blockExpr (ELSE_KEYWORD payload? statement)?
-    | ifPrefix assignExpr (SEMICOLON | ELSE_KEYWORD payload? statement)
+    | ifPrefix assignExpr (SEMICOLON | ELSE_KEYWORD payload? statement) {
+    name = "If Statement"
+}
 
-labeledStatement ::= blockLabel? (block | loopStatement)
+labeledStatement ::= blockLabel? (block | loopStatement) {
+    name = "Labeled Statement"
+}
 
-loopStatement ::= INLINE_KEYWORD? (forStatement | whileStatement)
+loopStatement ::= INLINE_KEYWORD? (forStatement | whileStatement) {
+    name = "Loop Statement"
+}
 
 forStatement ::=
       forPrefix blockExpr (ELSE_KEYWORD statement)?
-    | forPrefix assignExpr (SEMICOLON | ELSE_KEYWORD statement)
+    | forPrefix assignExpr (SEMICOLON | ELSE_KEYWORD statement) {
+    name = "For Statement"
+}
 
-whileStatement ::= blockExpr | assignExpr SEMICOLON
+whileStatement ::= blockExpr | assignExpr SEMICOLON {
+    name = "While Statement"
+}
 
-blockExprStatement ::= blockExpr | assignExpr SEMICOLON
+blockExprStatement ::= blockExpr | assignExpr SEMICOLON {
+    name = "Block Statement"
+}
 
-blockExpr ::= blockLabel? block
+blockExpr ::= blockLabel? block {
+    name = "Block Expression"
+}
 
 // Expression level
-assignExpr ::= expr (assignOp expr)?
-expr ::= TRY_KEYWORD* boolOrExpr
+assignExpr ::= expr (assignOp expr)? {
+    name = "Assign Expression"
+}
+expr ::= boolOrExpr {
+    name = "Expression"
+}
 boolOrExpr ::= boolAndExpr (OR_KEYWORD boolAndExpr)*
 boolAndExpr ::= compareExpr (AND_KEYWORD compareExpr)*
 compareExpr ::= bitwiseExpr (compareOp bitwiseExpr)?
@@ -240,6 +282,8 @@ whileContinueExpr ::= COLON LPAREN assignExpr RPAREN
 
 linkSection ::= LINKSECTION_KEYWORD LPAREN expr RPAREN
 
+callConv ::= CALLCONV_KEYWORD LPAREN expr RPAREN
+
 paramDecl ::= (NOALIAS_KEYWORD | COMPTIME_KEYWORD)? (symbol COLON)? paramType {
     implements=['com.intellij.psi.PsiNameIdentifierOwner']
 	mixin='org.ziglang.psi.impl.ZigParamDeclarationMixin'
@@ -344,18 +388,20 @@ fnCallArguments  ::= LPAREN exprList RPAREN
 private exprList ::= (expr COMMA)* expr?
 
 // Ptr specific
-arrayTypeStart ::= LBRACKET expr? RBRACKET
+arrayTypeStart ::= LBRACKET expr? (COLON expr)? RBRACKET
 
 ptrTypeStart ::= ASTERISK
                | ASTERISK2
-               | PTRUNKNOWN
-               | PTRC
+               | LBRACKET ASTERISK (LETTERC | COLON expr)? RBRACKET
 
 // ContainerDecl specific
 containerDeclAuto ::= containerDeclType LBRACE containerMembers RBRACE
 
-containerDeclType ::= (STRUCT_KEYWORD | ENUM_KEYWORD | OPAQUE_KEYWORD) (LPAREN expr RPAREN)?
-                    | UNION_KEYWORD (LPAREN (ENUM_KEYWORD (LPAREN expr RPAREN)? | expr) RPAREN)?
+containerDeclType ::=
+      STRUCT_KEYWORD
+    | OPAQUE_KEYWORD
+    | ENUM_KEYWORD (LPAREN expr RPAREN)?
+    | UNION_KEYWORD (LPAREN (ENUM_KEYWORD (LPAREN expr RPAREN)? | expr) RPAREN)?
 
 // Alignment
 byteAlign ::= ALIGN_KEYWORD LPAREN expr RPAREN
