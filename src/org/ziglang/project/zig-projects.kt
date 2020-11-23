@@ -7,6 +7,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.project.rootManager
 import com.intellij.openapi.roots.ModifiableModelsProvider
 import com.intellij.openapi.roots.ModifiableRootModel
@@ -20,6 +21,7 @@ import icons.ZigIcons
 import org.ziglang.ZigBundle
 import org.ziglang.action.NewZigFile
 import org.ziglang.project.ui.ZigProjectGeneratorPeerImpl
+import java.lang.IllegalStateException
 
 class ZigProjectGenerator : DirectoryProjectGeneratorBase<ZigSettings>(),
 		CustomStepProjectGenerator<ZigSettings> {
@@ -61,6 +63,8 @@ class ZigProjectGenerator : DirectoryProjectGeneratorBase<ZigSettings>(),
 project($name)
 """)
 			}
+
+			val baseDir = guessProjectDir() ?: throw IllegalStateException("Could not find the base directory for CMakeLists.txt generation")
 
 			val template = FileTemplateManager
 					.getInstance(this)

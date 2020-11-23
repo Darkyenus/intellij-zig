@@ -13,6 +13,7 @@
 		<additionalTextAttributes scheme="Default" file="/colorSchemes/Zig.xml"/>
 		<colorSettingsPage implementation="org.ziglang.ZigColorSettingsPage"/>
 		<errorHandler implementation="org.ziglang.error.GitHubErrorReporter"/>
+
 		<fileType name="Zig" language="Zig" extensions="zig" implementationClass="org.ziglang.ZigFileType" fieldName="INSTANCE"/>
 		<sdkType implementation="org.ziglang.project.ZigSdkType"/>
 
