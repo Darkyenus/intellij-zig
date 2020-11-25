@@ -15,7 +15,6 @@
 		<errorHandler implementation="org.ziglang.error.GitHubErrorReporter"/>
 
 		<fileType name="Zig" language="Zig" extensions="zig" implementationClass="org.ziglang.ZigFileType" fieldName="INSTANCE"/>
-		<sdkType implementation="org.ziglang.project.ZigSdkType"/>
 
 		<defaultLiveTemplates file="liveTemplates/Zig.xml"/>
 		<liveTemplateContext implementation="org.ziglang.ZigContext"/>
