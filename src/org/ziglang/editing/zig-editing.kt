@@ -91,13 +91,17 @@ class ZigFolderBuilder : FoldingBuilderEx(), DumbAware {
 		override fun getPlaceholderText() = holder
 	}
 
-	//树..树的遍历..?
-	override fun buildFoldRegions(
-			root: PsiElement, document: Document, quick: Boolean) = SyntaxTraverser
-			.psiTraverser(root)
-			.filter { (it is ZigBlock || it is ZigErrorSetDecl) && (it.textRange.length > 0) }
-			.map { ZigFoldingDescriptor(it, if (it is ZigErrorSetDecl) "error …" else "{…}") }
-			.toList().toTypedArray()
+	override fun buildFoldRegions(root: PsiElement, document: Document, quick: Boolean): Array<ZigFoldingDescriptor> {
+		return SyntaxTraverser.psiTraverser(root)
+				.mapNotNull { element ->
+					when {
+						element.textLength <= 100 -> null // Do not fold elements that are too small (+ attempting to fold 0-length elements crashes)
+						element is ZigBlock -> ZigFoldingDescriptor(element, "{…}")
+						element is ZigErrorSetDecl -> ZigFoldingDescriptor(element, "error …")
+						else -> null
+					}
+				}.toTypedArray()
+	}
 
 	override fun isCollapsedByDefault(node: ASTNode) = true
 	override fun getPlaceholderText(node: ASTNode) = "…"
