@@ -9,9 +9,10 @@ import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.PsiTreeUtil
 import icons.ZigIcons
 import org.ziglang.ZigTokenType
+import javax.swing.Icon
 
 /**
- * 今天就要成为吊打冰酱的人（超大雾
+ *
  */
 class ZigSymbolRef(
 		private val symbol: ZigSymbol,
@@ -78,10 +79,13 @@ open class SymbolResolveProcessor(
 		place: PsiElement,
 		private val incompleteCode: Boolean) :
 		ResolveProcessor<PsiElementResolveResult>(place) {
+
 	constructor(ref: ZigSymbolRef, incompleteCode: Boolean) : this(ref.canonicalText, ref.element, incompleteCode)
 
 	override val candidateSet = ArrayList<PsiElementResolveResult>(3)
+
 	protected open fun accessible(element: PsiElement) = name == element.text && isInScope(element)
+
 	override fun execute(element: PsiElement, resolveState: ResolveState): Boolean {
 		return when {
 			candidateSet.isNotEmpty() -> false
@@ -98,25 +102,42 @@ open class SymbolResolveProcessor(
 
 class CompletionProcessor(place: PsiElement, private val incompleteCode: Boolean) :
 		ResolveProcessor<LookupElementBuilder>(place) {
+
 	constructor(ref: ZigSymbolRef, incompleteCode: Boolean) : this(ref.element, incompleteCode)
 
 	override val candidateSet = ArrayList<LookupElementBuilder>(20)
+
 	override fun execute(element: PsiElement, resolveState: ResolveState): Boolean {
 		if (element is ZigSymbol) {
-			val (icon, value, tail, type) = when {
-				element.isFunctionName -> quadOf(ZigIcons.ZIG_FUN, element.text, "()", "")
-				element.isVariableName ||
-						element.isParameter -> quadOf(ZigIcons.ZIG_VAR, element.text, "", "")
+			val icon: Icon
+			val value: String
+			val tail: String
+			val type: String
+
+			when {
+				element.isFunctionName -> {
+					icon = ZigIcons.ZIG_FUN
+					value = element.text
+					tail = "()"
+					type = ""
+				}
+				element.isVariableName || element.isParameter -> {
+					icon = ZigIcons.ZIG_VAR
+					value = element.text
+					tail = ""
+					type = ""
+				}
 				else -> return true
 			}
-			if (element.hasNoError && isInScope(element)) candidateSet += LookupElementBuilder
-					.create(value)
-					.withIcon(icon)
-					// tail text, it will not be completed by Enter Key press
-					.withTailText(tail, true)
-					// the type of return value,show at right of popup
-					.withTypeText(type, true)
-//		}
+			if (element.hasNoError && isInScope(element)) {
+				candidateSet += LookupElementBuilder
+						.create(value)
+						.withIcon(icon)
+						// tail text, it will not be completed by Enter Key press
+						.withTailText(tail, true)
+						// the type of return value, show at right of popup
+						.withTypeText(type, true)
+			}
 		}
 		return true
 	}

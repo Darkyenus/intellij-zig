@@ -7,16 +7,6 @@ import com.intellij.psi.util.PsiTreeUtil
 import org.ziglang.psi.ZigExpr
 import org.ziglang.psi.ZigSymbol
 
-/**
- * @param self The declaration itself
- */
-fun collectFrom(startPoint: PsiElement, name: String, self: PsiElement? = null) = SyntaxTraverser
-		.psiTraverser(startPoint)
-		.filter { it is ZigSymbol && !it.isDeclaration && it.text == name && it != self }
-		.mapNotNull(PsiElement::getReference)
-		.let { if (self != null) it.filter { it.isReferenceTo(self) } else it }
-		.toTypedArray()
-
 fun PsiElement.prevSiblingTypeIgnoring(
 		type: IElementType,
 		vararg types: IElementType): PsiElement? {
@@ -38,5 +28,3 @@ inline fun <reified Psi : PsiElement> PsiElement.prevSiblingIgnoring(vararg type
 		else localNext as? Psi
 	}
 }
-
-fun PsiElement.firstExprOrNull() = PsiTreeUtil.findChildOfType(this, ZigExpr::class.java)

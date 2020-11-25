@@ -14,8 +14,6 @@ import org.ziglang.psi.ZigPrimaryBoolExpr
 import org.ziglang.psi.ZigPrimaryBuiltinExpr
 import org.ziglang.psi.ZigStringLiteral
 import org.ziglang.psi.ZigSymbol
-import org.ziglang.psi.ZigTestDecl
-import org.ziglang.psi.impl.firstExprOrNull
 import org.ziglang.subRange
 import java.util.regex.Pattern
 import kotlin.math.min
@@ -39,7 +37,6 @@ class ZigAnnotator : Annotator {
 			is ZigSymbol -> symbol(element, holder)
 			is ZigPrimaryBuiltinExpr -> macroExpr(element, holder)
 			is ZigIfPrefix -> ifExpr(element.condition, holder)
-			is ZigTestDecl -> ifExpr(element.firstExprOrNull(), holder)
 			is ZigStringLiteral -> string(element, holder)
 		}
 	}

@@ -32,7 +32,7 @@ class ZigRunConfiguration(project: Project, factory: ConfigurationFactory) :
 	var installPath: String
 	var outputDir = ""
 	var releaseMode = "debug"
-  var coloredMode = "auto"
+	var coloredMode = "auto"
 
 	var static = false
 	var strip = false
@@ -67,7 +67,7 @@ class ZigRunConfiguration(project: Project, factory: ConfigurationFactory) :
 		JDOMExternalizer.readString(element, "installPath")?.let { installPath = it }
 		JDOMExternalizer.readString(element, "outputDir")?.let { outputDir = it }
 		JDOMExternalizer.readString(element, "releaseMode")?.let { releaseMode = it }
-    JDOMExternalizer.readString(element, "coloredMode")?.let { coloredMode = it }
+        JDOMExternalizer.readString(element, "coloredMode")?.let { coloredMode = it }
 
 		JDOMExternalizer.readBoolean(element, "static").let { static = it }
 		JDOMExternalizer.readBoolean(element, "strip").let { strip = it }
@@ -89,7 +89,7 @@ class ZigRunConfiguration(project: Project, factory: ConfigurationFactory) :
 		JDOMExternalizer.write(element, "installPath", installPath)
 		JDOMExternalizer.write(element, "outputDir", outputDir)
 		JDOMExternalizer.write(element, "releaseMode", releaseMode)
-    JDOMExternalizer.write(element, "coloredMode", coloredMode)
+        JDOMExternalizer.write(element, "coloredMode", coloredMode)
 
 		JDOMExternalizer.write(element, "static", static)
 		JDOMExternalizer.write(element, "strip", strip)

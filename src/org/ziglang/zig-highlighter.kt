@@ -165,7 +165,7 @@ object ZigSyntaxHighlighter : SyntaxHighlighter {
 	@JvmField val BRACES_KEY = arrayOf(BRACE)
 	@JvmField val BUILTIN_FUNCTION_CALL_KEY = arrayOf(BUILTIN_FUNCTION_CALL)
 
-	override fun getHighlightingLexer() = ZigLexerAdapter()
+	override fun getHighlightingLexer() = newZigLexer()
 	override fun getTokenHighlights(tokenType: IElementType?): Array<TextAttributesKey> = when (tokenType) {
 		ZigTypes.IDENTIFIER -> SYMBOL_KEY
 		ZigTokenType.LINE_COMMENT -> LINE_COMMENT_KEY

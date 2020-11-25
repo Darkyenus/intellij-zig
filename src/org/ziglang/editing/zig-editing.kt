@@ -25,8 +25,8 @@ import com.intellij.ui.breadcrumbs.BreadcrumbsProvider
 import org.ziglang.ZIG_COMMENT_START
 import org.ziglang.ZigBundle
 import org.ziglang.ZigLanguage
-import org.ziglang.ZigLexerAdapter
 import org.ziglang.ZigTokenType
+import org.ziglang.newZigLexer
 import org.ziglang.psi.ZigBlock
 import org.ziglang.psi.ZigBlockExpr
 import org.ziglang.psi.ZigErrorSetDecl
@@ -144,7 +144,7 @@ class ZigFindUsagesProvider : FindUsagesProvider {
 	override fun getType(element: PsiElement) = ""
 	override fun getDescriptiveName(element: PsiElement) = (element as? PsiNamedElement)?.name ?: ""
 	override fun getNodeText(element: PsiElement, useFullName: Boolean) = getDescriptiveName(element)
-	override fun getWordsScanner() = DefaultWordsScanner(ZigLexerAdapter(), ZigTokenType.IDENTIFIERS, ZigTokenType.COMMENTS, ZigTokenType.STRINGS)
+	override fun getWordsScanner() = DefaultWordsScanner(newZigLexer(), ZigTokenType.IDENTIFIERS, ZigTokenType.COMMENTS, ZigTokenType.STRINGS)
 }
 
 class ZigRefactoringSupportProvider : RefactoringSupportProvider() {

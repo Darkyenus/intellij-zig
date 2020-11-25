@@ -2,27 +2,38 @@ package org.ziglang
 
 import com.intellij.lang.ASTNode
 import com.intellij.lang.ParserDefinition
+import com.intellij.lang.PsiParser
 import com.intellij.lexer.FlexAdapter
+import com.intellij.lexer.Lexer
 import com.intellij.openapi.project.Project
 import com.intellij.psi.FileViewProvider
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.tree.*
 import org.ziglang.psi.ZigTypes
 
-class ZigLexerAdapter : FlexAdapter(ZigLexer())
+fun newZigLexer(): Lexer = FlexAdapter(ZigLexer())
 
 class ZigParserDefinition : ParserDefinition {
-	override fun createParser(project: Project?) = ZigParser()
-	override fun createLexer(project: Project?) = ZigLexerAdapter()
-	override fun createFile(viewProvider: FileViewProvider) = ZigFile(viewProvider)
-	override fun createElement(node: ASTNode?) = ZigTypes.Factory.createElement(node)
-	override fun getStringLiteralElements() = ZigTokenType.STRINGS
-	override fun getCommentTokens() = ZigTokenType.COMMENTS
-	override fun getFileNodeType() = FILE
-	override fun getWhitespaceTokens() = TokenSet.WHITE_SPACE
-	override fun spaceExistanceTypeBetweenTokens(left: ASTNode?, right: ASTNode?) =
-			ParserDefinition.SpaceRequirements.MAY
+	override fun createParser(project: Project?): PsiParser = ZigParser()
+	override fun createLexer(project: Project?): Lexer = newZigLexer()
+	override fun createFile(viewProvider: FileViewProvider): ZigFile = ZigFile(viewProvider)
+	override fun createElement(node: ASTNode?): PsiElement = ZigTypes.Factory.createElement(node)
+	override fun getStringLiteralElements(): TokenSet = ZigTokenType.STRINGS
+	override fun getCommentTokens(): TokenSet = ZigTokenType.COMMENTS
+	override fun getFileNodeType(): IFileElementType = FILE
+	override fun getWhitespaceTokens(): TokenSet = TokenSet.WHITE_SPACE
+
+	override fun spaceExistenceTypeBetweenTokens(left: ASTNode?, right: ASTNode?): ParserDefinition.SpaceRequirements {
+		val leftType = left?.elementType ?: return ParserDefinition.SpaceRequirements.MAY
+		val rightType = right?.elementType ?: return ParserDefinition.SpaceRequirements.MAY
+
+		if (leftType in ZigTokenType.IDENTIFIERS && rightType in ZigTokenType.IDENTIFIERS) {
+			return ParserDefinition.SpaceRequirements.MUST
+		}
+		return ParserDefinition.SpaceRequirements.MAY
+	}
 
 	private companion object FileHolder {
 		private val FILE = IFileElementType(ZigLanguage.INSTANCE)
