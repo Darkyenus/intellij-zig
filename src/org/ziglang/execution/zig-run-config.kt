@@ -5,7 +5,9 @@ package org.ziglang.execution
 import com.intellij.execution.Executor
 import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.execution.actions.RunConfigurationProducer
-import com.intellij.execution.configurations.*
+import com.intellij.execution.configurations.ConfigurationFactory
+import com.intellij.execution.configurations.ConfigurationType
+import com.intellij.execution.configurations.LocatableConfigurationBase
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.components.PathMacroManager
@@ -16,9 +18,11 @@ import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiElement
 import icons.ZigIcons
 import org.jdom.Element
-import org.ziglang.*
+import org.ziglang.ZigBundle
+import org.ziglang.ZigFileType
 import org.ziglang.project.validateZigExe
 import org.ziglang.project.zigSettings
+import org.ziglang.trimPath
 import java.nio.file.Paths
 import com.google.common.io.Files as GoogleFiles
 
@@ -109,10 +113,13 @@ object ZigRunConfigurationType : ConfigurationType, DumbAware {
 	override fun getConfigurationTypeDescription() = ZigBundle.message("zig.run-config.description")
 	override fun getDisplayName() = ZigBundle.message("zig.name")
 	override fun getConfigurationFactories() = factories
-	override fun getId() = ZIG_RUN_CONFIG_ID
+	override fun getId() = "ZIG_RUN_CONFIG_ID"
 }
 
 class ZigRunConfigurationFactory(type: ConfigurationType) : ConfigurationFactory(type), DumbAware {
+
+	override fun getId(): String = "ZigRunConfiguration"
+
 	override fun createTemplateConfiguration(project: Project) = ZigRunConfiguration(project, this).apply {
 		project.baseDir.run {
 			workingDir = path

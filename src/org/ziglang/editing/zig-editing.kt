@@ -22,7 +22,6 @@ import com.intellij.psi.tree.IElementType
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy
 import com.intellij.spellchecker.tokenizer.Tokenizer
 import com.intellij.ui.breadcrumbs.BreadcrumbsProvider
-import org.ziglang.ZIG_COMMENT_START
 import org.ziglang.ZigBundle
 import org.ziglang.ZigLanguage
 import org.ziglang.ZigTokenType
@@ -46,7 +45,7 @@ class ZigCommenter : Commenter {
 	override fun getCommentedBlockCommentSuffix(): String? = blockCommentSuffix
 	override fun getBlockCommentPrefix(): String? = null
 	override fun getBlockCommentSuffix(): String? = null
-	override fun getLineCommentPrefix() = ZIG_COMMENT_START
+	override fun getLineCommentPrefix() = "//"
 }
 
 class ZigBraceMatcher : PairedBraceMatcher {
@@ -68,7 +67,7 @@ object ZigNameValidator : InputValidatorEx {
 	override fun checkInput(inputString: String?) = inputString?.run {
 			all {
 				it.isLetterOrDigit() || it == '_'
-			} && !(firstOrNull()?.isDigit() == true)
+			} && firstOrNull()?.isDigit() != true
 		} == true
 
 	override fun getErrorText(inputString: String?) =
@@ -107,24 +106,27 @@ class ZigFolderBuilder : FoldingBuilderEx(), DumbAware {
 	override fun getPlaceholderText(node: ASTNode) = "…"
 }
 
-const val TEXT_MAX = 16
-const val LONG_TEXT_MAX = 24
 fun cutText(it: String, textMax: Int) = if (it.length <= textMax) it else "${it.take(textMax)}…"
 
 class ZigBreadcrumbsProvider : BreadcrumbsProvider {
+
 	private fun ZigFnProto.text() = name?.let { "$it()" }
-	override fun getLanguages() = arrayOf(ZigLanguage.INSTANCE)
-	override fun getElementInfo(element: PsiElement) = cutText(when (element) {
-		is ZigGlobalFnDeclaration -> element.functionPrototype.text()
-		is ZigGlobalFnPrototype -> element.functionPrototype.text()
-		is ZigTestDecl -> element.testName?.text ?: "???"
-		is ZigTopLevelComptime -> "comptime"
-		is ZigBlock -> element.firstChild.text
-		is ZigBlockExpr -> "{…}"
-		is ZigGlobalVarDeclaration -> element.varDecl.name
-		is ZigVariableDeclarationStatement -> element.varDecl.name
-		else -> null
-	}.orEmpty(), TEXT_MAX)
+
+	override fun getLanguages() = arrayOf(ZigLanguage)
+
+	override fun getElementInfo(element: PsiElement): String {
+		return cutText(when (element) {
+			is ZigGlobalFnDeclaration -> element.functionPrototype.text()
+			is ZigGlobalFnPrototype -> element.functionPrototype.text()
+			is ZigTestDecl -> element.testName?.text ?: "???"
+			is ZigTopLevelComptime -> "comptime"
+			is ZigBlock -> element.firstChild.text
+			is ZigBlockExpr -> "{…}"
+			is ZigGlobalVarDeclaration -> element.varDecl.name
+			is ZigVariableDeclarationStatement -> element.varDecl.name
+			else -> null
+		}.orEmpty(), 16)
+	}
 
 	override fun acceptElement(element: PsiElement): Boolean {
 		return element is ZigGlobalFnDeclaration ||

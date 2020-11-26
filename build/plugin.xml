@@ -9,6 +9,7 @@
 	<extensions defaultExtensionNs="com.intellij">
 		<internalFileTemplate name="Zig File"/>
 		<internalFileTemplate name="Zig Exe"/>
+
 		<additionalTextAttributes scheme="Darcula" file="/colorSchemes/ZigDark.xml"/>
 		<additionalTextAttributes scheme="Default" file="/colorSchemes/Zig.xml"/>
 		<colorSettingsPage implementation="org.ziglang.ZigColorSettingsPage"/>

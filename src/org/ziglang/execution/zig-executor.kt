@@ -1,9 +1,17 @@
 package org.ziglang.execution
 
-import com.intellij.execution.*
-import com.intellij.execution.configurations.*
+import com.intellij.execution.DefaultExecutionResult
+import com.intellij.execution.ExecutionBundle
+import com.intellij.execution.ExecutionResult
+import com.intellij.execution.Executor
+import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.filters.TextConsoleBuilderFactory
-import com.intellij.execution.process.*
+import com.intellij.execution.process.OSProcessHandler
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessHandler
+import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.ConsoleView
@@ -14,7 +22,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.psi.search.GlobalSearchScopes
-import org.ziglang.ZIG_INSTALL_PREFIX
 import java.nio.file.Paths
 
 class ZigCommandLineState(
@@ -39,8 +46,6 @@ class ZigCommandLineState(
 			buildParams += exePath
 			buildParams += "build-exe"
 			buildParams += targetFile
-			buildParams += ZIG_INSTALL_PREFIX
-			buildParams += installPath
 			buildParams += "--output"
 			buildParams += outputFile
 			buildParams += additionalOptions.split(' ', '\n').filter(String::isNotBlank)

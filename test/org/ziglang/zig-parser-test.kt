@@ -3,7 +3,7 @@ package org.ziglang
 import com.intellij.testFramework.LightPlatformTestCase
 import com.intellij.testFramework.ParsingTestCase
 
-class ZigParserTests : ParsingTestCase("", ZIG_EXTENSION, ZigParserDefinition()) {
+class ZigParserTests : ParsingTestCase("", ZigFileType.defaultExtension, ZigParserDefinition()) {
 	override fun getTestDataPath() = "testData/parsing"
 	override fun skipSpaces() = true
 
@@ -70,7 +70,7 @@ class ZigParserTests : ParsingTestCase("", ZIG_EXTENSION, ZigParserDefinition())
 
 class ZigBasicParsingTest : LightPlatformTestCase() {
 	fun testParse() {
-		ZigTokenType.fromText("abc", ourProject).javaClass
+		ZigTokenType.fromText("abc", project).javaClass
 				.let(::println)
 	}
 }

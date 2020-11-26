@@ -55,7 +55,6 @@ import org.eclipse.egit.github.core.client.GitHubClient
 import org.eclipse.egit.github.core.service.IssueService
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.PropertyKey
-import org.ziglang.ZIG_PLUGIN_ID
 import org.ziglang.project.zigSettings
 import java.awt.Component
 import java.io.IOException
@@ -75,6 +74,7 @@ private object AnonymousFeedback {
 	private const val gitRepoUser = "ice1000"
 	private const val gitRepo = "zig-intellij"
 	private const val issueLabel = "pending"
+	const val ZIG_PLUGIN_ID = "org.ziglang"
 
 	/**
 	 * Makes a connection to GitHub. Checks if there is an issue that is a duplicate and based on this, creates either a
@@ -282,7 +282,7 @@ private fun getKeyValuePairs(
 		error: GitHubErrorBean,
 		appInfo: ApplicationInfoEx,
 		namesInfo: ApplicationNamesInfo): MutableMap<String, String> {
-	PluginManagerCore.getPlugin(PluginId.findId(ZIG_PLUGIN_ID))?.run {
+	PluginManagerCore.getPlugin(PluginId.findId(AnonymousFeedback.ZIG_PLUGIN_ID))?.run {
 		if (error.pluginName.isBlank()) error.pluginName = name
 		if (error.pluginVersion.isBlank()) error.pluginVersion = version
 	}

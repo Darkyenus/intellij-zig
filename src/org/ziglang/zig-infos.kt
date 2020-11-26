@@ -3,6 +3,7 @@ package org.ziglang
 import com.intellij.AbstractBundle
 import com.intellij.codeInsight.template.TemplateContextType
 import com.intellij.extapi.psi.PsiFileBase
+import com.intellij.lang.Language
 import com.intellij.openapi.fileTypes.LanguageFileType
 import com.intellij.psi.FileViewProvider
 import com.intellij.psi.PsiElement
@@ -15,14 +16,18 @@ import org.jetbrains.annotations.PropertyKey
 import org.ziglang.psi.ZigGlobalVarDeclaration
 import java.util.*
 
-object ZigFileType : LanguageFileType(ZigLanguage.INSTANCE) {
+object ZigLanguage : Language("Zig", "text/zig") {
+	override fun isCaseSensitive(): Boolean = false
+}
+
+object ZigFileType : LanguageFileType(ZigLanguage) {
 	override fun getIcon() = ZigIcons.ZIG_FILE
-	override fun getName() = ZIG_NAME
-	override fun getDefaultExtension() = ZIG_EXTENSION
+	override fun getName() = "Zig"
+	override fun getDefaultExtension() = "zig"
 	override fun getDescription() = ZigBundle.message("zig.description")
 }
 
-class ZigFile(viewProvider: FileViewProvider) : PsiFileBase(viewProvider, ZigLanguage.INSTANCE) {
+class ZigFile(viewProvider: FileViewProvider) : PsiFileBase(viewProvider, ZigLanguage) {
 	override fun getFileType() = ZigFileType
 	override fun processDeclarations(processor: PsiScopeProcessor, state: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean =
 			children.all {
@@ -31,7 +36,7 @@ class ZigFile(viewProvider: FileViewProvider) : PsiFileBase(viewProvider, ZigLan
 			}
 }
 
-class ZigContext : TemplateContextType(ZIG_CONTEXT_ID, ZIG_NAME) {
+class ZigContext : TemplateContextType("ZIG_CONTEXT_ID", "Zig") {
 	override fun isInContext(file: PsiFile, offset: Int) = file.fileType == ZigFileType
 }
 

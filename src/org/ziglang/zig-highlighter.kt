@@ -5,7 +5,9 @@ import com.intellij.openapi.editor.HighlighterColors
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.openapi.fileTypes.SyntaxHighlighter
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
-import com.intellij.openapi.options.colors.*
+import com.intellij.openapi.options.colors.AttributesDescriptor
+import com.intellij.openapi.options.colors.ColorDescriptor
+import com.intellij.openapi.options.colors.ColorSettingsPage
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.tree.IElementType
@@ -166,6 +168,7 @@ object ZigSyntaxHighlighter : SyntaxHighlighter {
 	@JvmField val BUILTIN_FUNCTION_CALL_KEY = arrayOf(BUILTIN_FUNCTION_CALL)
 
 	override fun getHighlightingLexer() = newZigLexer()
+
 	override fun getTokenHighlights(tokenType: IElementType?): Array<TextAttributesKey> = when (tokenType) {
 		ZigTypes.IDENTIFIER -> SYMBOL_KEY
 		ZigTokenType.LINE_COMMENT -> LINE_COMMENT_KEY
