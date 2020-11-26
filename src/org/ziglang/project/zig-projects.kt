@@ -2,7 +2,9 @@ package org.ziglang.project
 
 import com.intellij.ide.fileTemplates.FileTemplateManager
 import com.intellij.ide.fileTemplates.FileTemplateUtil
-import com.intellij.ide.util.projectWizard.*
+import com.intellij.ide.util.projectWizard.AbstractNewProjectStep
+import com.intellij.ide.util.projectWizard.CustomStepProjectGenerator
+import com.intellij.ide.util.projectWizard.ProjectSettingsStepBase
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.module.Module
@@ -20,8 +22,8 @@ import com.intellij.util.PlatformUtils
 import icons.ZigIcons
 import org.ziglang.ZigBundle
 import org.ziglang.action.NewZigFile
+import org.ziglang.findOrCreate
 import org.ziglang.project.ui.ZigProjectGeneratorPeerImpl
-import java.lang.IllegalStateException
 
 class ZigProjectGenerator : DirectoryProjectGeneratorBase<ZigSettings>(),
 		CustomStepProjectGenerator<ZigSettings> {
@@ -35,15 +37,15 @@ class ZigProjectGenerator : DirectoryProjectGeneratorBase<ZigSettings>(),
 	override fun createPeer() = ZigProjectGeneratorPeerImpl()
 
 	override fun generateProject(project: Project, baseDir: VirtualFile, settings: ZigSettings, module: Module) {
-		(project.zigSettings as ZigProjectServiceImpl).loadState(settings)
+		project.zigSettings = settings
 		ApplicationManager.getApplication().runWriteAction {
 			val modifiableModel: ModifiableRootModel = ModifiableModelsProvider.SERVICE.getInstance().getModuleModifiableModel(module)
 			module.rootManager.modifiableModel.apply {
 				inheritSdk()
 				contentEntries.firstOrNull()?.apply {
-					addExcludeFolder(findOrCreate(baseDir, "out", module))
-					addExcludeFolder(findOrCreate(baseDir, "zig-cache", module))
-					addSourceFolder(findOrCreate(baseDir, "src", module), false)
+					addExcludeFolder(baseDir.findOrCreate("out", module))
+					addExcludeFolder(baseDir.findOrCreate("zig-cache", module))
+					addSourceFolder(baseDir.findOrCreate("src", module), false)
 				}
 				commit()
 			}

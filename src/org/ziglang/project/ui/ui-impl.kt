@@ -1,5 +1,6 @@
 package org.ziglang.project.ui
 
+import com.intellij.ide.browsers.BrowserLauncher
 import com.intellij.ide.util.projectWizard.SettingsStep
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.ConfigurationException
@@ -7,12 +8,17 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.platform.ProjectGeneratorPeer
+import com.intellij.ui.components.labels.LinkLabel
 import org.ziglang.ZigBundle
-import org.ziglang.project.*
+import org.ziglang.initExeComboBox
+import org.ziglang.project.ZigSettings
+import org.ziglang.project.validateZigExe
+import org.ziglang.project.versionOf
+import org.ziglang.project.zigSettings
 import java.awt.event.ItemListener
 
 class ZigProjectGeneratorPeerImpl : ZigProjectGeneratorPeer() {
-	private val settings = ZigSettings()
+	private var settings = ZigSettings()
 	private val listeners = ArrayList<ProjectGeneratorPeer.SettingsListener>()
 
 	init {
@@ -55,16 +61,8 @@ class ZigProjectGeneratorPeerImpl : ZigProjectGeneratorPeer() {
 				// usefulText.isVisible = true
 				return ValidationInfo(ZigBundle.message("zig.project.invalid-exe"))
 			}
-			val installPath = installPathField.text
-			if (!validateZigLib(installPath)) {
-				// usefulText.isVisible = true
-				return ValidationInfo(ZigBundle.message("zig.project.invalid-install-path"))
-			}
-			settings.installPath = installPath
 			listeners.forEach { it.stateChanged(true) }
-			settings.exePath = selected
-			settings.version = version.text
-			zigGlobalSettings.knownZigExes += selected
+			settings = ZigSettings(selected)
 		}
 		return null
 	}
@@ -72,27 +70,24 @@ class ZigProjectGeneratorPeerImpl : ZigProjectGeneratorPeer() {
 	override fun isBackgroundJobRunning() = false
 }
 
-class ZigConfigurableImpl(project: Project) : ZigConfigurable() {
-	private val settings = project.zigSettingsNullable?.settings ?: ZigSettings()
+class ZigConfigurableImpl(private val project: Project) : ZigConfigurable() {
 
 	init {
 		initExeComboBox(executablePath) {
-			executablePath.comboBox.selectedItem = settings.exePath
+			executablePath.comboBox.selectedItem = project.zigSettings.exePath
 			version.text = versionOf(it.comboBox.selectedItem as? String ?: return@initExeComboBox)
 		}
 		zigWebsite.asLink()
 		iceZigRelease.asLink()
-		installPathField.text = settings.installPath
-		version.text = settings.version
+		installPathField.text = ""
+		version.text = project.zigSettings.exeInfo?.version ?: "Invalid"
 		installPathField.addBrowseFolderListener(TextBrowseFolderListener(
 				FileChooserDescriptorFactory.createSingleFolderDescriptor()))
 	}
 
 	override fun createComponent() = mainPanel
 	override fun getDisplayName() = ZigBundle.message("zig.name")
-	override fun isModified() = executablePath.comboBox.selectedItem != settings.exePath ||
-			version.text != settings.version ||
-			installPathField.text != settings.installPath
+	override fun isModified() = executablePath.comboBox.selectedItem != project.zigSettings.exePath
 
 	@Throws(ConfigurationException::class)
 	override fun apply() {
@@ -100,13 +95,14 @@ class ZigConfigurableImpl(project: Project) : ZigConfigurable() {
 		if (selected != null) {
 			if (!validateZigExe(selected))
 				throw ConfigurationException(ZigBundle.message("zig.project.invalid-exe"))
-			val installPath = installPathField.text
-			if (!validateZigLib(installPath))
-				throw ConfigurationException(ZigBundle.message("zig.project.invalid-install-path"))
-			settings.installPath = installPathField.text
-			settings.version = version.text
-			settings.exePath = selected
-			zigGlobalSettings.knownZigExes += selected
+			project.zigSettings = ZigSettings(selected)
 		}
 	}
 }
+
+private fun LinkLabel<Any>.asLink() {
+	setListener({ _, _ ->
+		BrowserLauncher.instance.browse(text)
+	}, null)
+}
+

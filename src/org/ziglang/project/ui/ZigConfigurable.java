@@ -12,7 +12,7 @@ public abstract class ZigConfigurable implements Configurable {
 	protected @NotNull JPanel mainPanel;
 	protected @NotNull ComboboxWithBrowseButton executablePath;
 	protected @NotNull JLabel version;
-	protected @NotNull TextFieldWithBrowseButton installPathField;
+	protected @NotNull TextFieldWithBrowseButton installPathField;// TODO(jp): REMOVE
 	protected @NotNull LinkLabel<Object> zigWebsite;
 	protected @NotNull LinkLabel<Object> iceZigRelease;
 }

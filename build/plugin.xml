@@ -32,12 +32,7 @@
 		<projectConfigurable
 				groupId="language"
 				instance="org.ziglang.project.ui.ZigConfigurableImpl"/>
-		<projectService
-				serviceInterface="org.ziglang.project.ZigProjectService"
-				serviceImplementation="org.ziglang.project.ZigProjectServiceImpl"/>
-		<applicationService
-				serviceInterface="org.ziglang.project.ZigGlobalSettingsService"
-				serviceImplementation="org.ziglang.project.ZigGlobalSettingsServiceImpl"/>
+
 		<lang.refactoringSupport
 				language="Zig"
 				implementationClass="org.ziglang.editing.ZigRefactoringSupportProvider"/>

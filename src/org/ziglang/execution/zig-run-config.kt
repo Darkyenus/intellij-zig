@@ -33,7 +33,6 @@ class ZigRunConfiguration(project: Project, factory: ConfigurationFactory) :
 	var workingDir = ""
 	var additionalOptions = ""
 	var programArgs = ""
-	var installPath: String
 	var outputDir = ""
 	var releaseMode = "debug"
 	var coloredMode = "auto"
@@ -50,9 +49,7 @@ class ZigRunConfiguration(project: Project, factory: ConfigurationFactory) :
 	var isBuildOnly = false      // Separate "Build" and "Run"
 
 	init {
-		val zigSettings = project.zigSettings.settings
-		exePath = zigSettings.exePath
-		installPath = zigSettings.installPath
+		exePath = project.zigSettings.exePath ?: ""
 	}
 
 	override fun getState(executor: Executor, environment: ExecutionEnvironment) =
@@ -68,7 +65,6 @@ class ZigRunConfiguration(project: Project, factory: ConfigurationFactory) :
 		JDOMExternalizer.readString(element, "workingDir")?.let { workingDir = it }
 		JDOMExternalizer.readString(element, "additionalOptions")?.let { additionalOptions = it }
 		JDOMExternalizer.readString(element, "programArgs")?.let { programArgs = it }
-		JDOMExternalizer.readString(element, "installPath")?.let { installPath = it }
 		JDOMExternalizer.readString(element, "outputDir")?.let { outputDir = it }
 		JDOMExternalizer.readString(element, "releaseMode")?.let { releaseMode = it }
         JDOMExternalizer.readString(element, "coloredMode")?.let { coloredMode = it }
@@ -90,7 +86,6 @@ class ZigRunConfiguration(project: Project, factory: ConfigurationFactory) :
 		JDOMExternalizer.write(element, "workingDir", workingDir)
 		JDOMExternalizer.write(element, "additionalOptions", additionalOptions)
 		JDOMExternalizer.write(element, "programArgs", programArgs)
-		JDOMExternalizer.write(element, "installPath", installPath)
 		JDOMExternalizer.write(element, "outputDir", outputDir)
 		JDOMExternalizer.write(element, "releaseMode", releaseMode)
         JDOMExternalizer.write(element, "coloredMode", coloredMode)

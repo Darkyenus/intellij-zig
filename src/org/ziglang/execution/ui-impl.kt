@@ -3,7 +3,7 @@ package org.ziglang.execution
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.ui.TextBrowseFolderListener
 import org.ziglang.ZigFileType
-import org.ziglang.project.initExeComboBox
+import org.ziglang.initExeComboBox
 
 class ZigRunConfigurationEditorImpl(configuration: ZigRunConfiguration) : ZigRunConfigurationEditor() {
 	init {
@@ -28,7 +28,6 @@ class ZigRunConfigurationEditorImpl(configuration: ZigRunConfiguration) : ZigRun
 		workingDirField.text = configuration.workingDir
 		compilerArgsField.text = configuration.additionalOptions
 		programArgsField.text = configuration.programArgs
-		installPathField.text = configuration.installPath
 		outputDirField.text = configuration.outputDir
 
 		releaseMode.selectedItem = configuration.releaseMode
@@ -49,7 +48,6 @@ class ZigRunConfigurationEditorImpl(configuration: ZigRunConfiguration) : ZigRun
 		configuration.workingDir = workingDirField.text
 		configuration.additionalOptions = compilerArgsField.text
 		configuration.programArgs = programArgsField.text
-		configuration.installPath = installPathField.text
 		configuration.outputDir = outputDirField.text
 		configuration.exePath = executablePath.comboBox.selectedItem as String
 

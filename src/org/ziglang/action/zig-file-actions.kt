@@ -35,7 +35,6 @@ import org.ziglang.execution.ZigRunConfiguration
 import org.ziglang.execution.ZigRunConfigurationType
 import org.ziglang.project.validateZigExe
 import org.ziglang.project.zigSettings
-import org.ziglang.project.zigSettingsNullable
 import org.ziglang.trimPath
 
 class ZigTranslateFromCAction : AnAction(
@@ -45,14 +44,13 @@ class ZigTranslateFromCAction : AnAction(
 	override fun actionPerformed(e: AnActionEvent) {
 
 		val project = e.project ?: return
-		val zigSettings = project.zigSettings.settings
 		val cFile = CommonDataKeys.VIRTUAL_FILE.getData(e.dataContext) ?: return
 		val zigFileName = "${cFile.nameWithoutExtension}.${ZigFileType.defaultExtension}"
 		val (stdout, stderr) = ProgressManager.getInstance().run(object :
 				Task.WithResult<Pair<List<String>, List<String>>, Exception>(
 						project, "", false) {
 			override fun compute(indicator: ProgressIndicator) = executeCommand(arrayOf(
-					zigSettings.exePath,
+					project.zigSettings.exePath!!,
 					"translate-c",
 					cFile.path
 			), timeLimit = 10000L)
@@ -72,9 +70,11 @@ class ZigTranslateFromCAction : AnAction(
 	}
 
 	override fun update(e: AnActionEvent) {
-		val zigExe = e.project?.zigSettingsNullable?.settings?.exePath ?: return
 		val presentation = e.presentation
-		presentation.isVisible = validateZigExe(zigExe)
+
+		val zigExe = e.project?.zigSettings?.exePath
+		presentation.isVisible = zigExe != null && validateZigExe(zigExe)
+
 		val file = CommonDataKeys.VIRTUAL_FILE.getData(e.dataContext)
 		val fileType = file?.fileType as? LanguageFileType
 		if (file == null || (fileType != null && !fileType.name.toLowerCase().contains('c'))) {
@@ -124,7 +124,7 @@ class NewZigFile : CreateFileFromTemplateAction(
 	companion object PropertyCreator {
 		fun createProperties(project: Project, fileName: String) =
 				FileTemplateManager.getInstance(project).defaultProperties.also { properties ->
-					properties += "ZIG_VERSION" to project.zigSettings.settings.version
+					properties += "ZIG_VERSION" to project.zigSettings.exeInfo?.version
 					properties += "NAME" to fileName
 				}
 	}

@@ -288,7 +288,7 @@ private fun getKeyValuePairs(
 	}
 	val params = mutableMapOf(
 			"error.description" to error.description,
-			"Zig Version" to (project?.run { zigSettings.settings.version } ?: "Not properly configured"),
+			"Zig Version" to (project?.run { zigSettings.exeInfo?.version } ?: "Not properly configured"),
 			"Plugin Name" to error.pluginName,
 			"Plugin Version" to error.pluginVersion,
 			"OS Name" to SystemInfo.OS_NAME,
