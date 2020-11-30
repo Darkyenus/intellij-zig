@@ -2,13 +2,18 @@ package org.ziglang.editing
 
 import com.intellij.psi.PsiElement
 import org.ziglang.ZigFile
-import org.ziglang.psi.*
+import org.ziglang.psi.ZigGlobalFnDeclaration
+import org.ziglang.psi.ZigGlobalFnPrototype
+import org.ziglang.psi.ZigGlobalUsingNamespace
+import org.ziglang.psi.ZigGlobalVarDeclaration
+import org.ziglang.psi.ZigIfExpr
+import org.ziglang.psi.ZigTestDecl
 
-fun PsiElement.presentText() = when (this) {
+fun PsiElement.presentText(): String = when (this) {
 	is ZigFile -> name
 	is ZigIfExpr -> "if ${children.getOrNull(1)?.text ?: ""}"
-	is ZigGlobalFnDeclaration -> "fn ${functionPrototype.name}()"
-	is ZigGlobalFnPrototype -> "fn ${functionPrototype.name}()"
+	is ZigGlobalFnDeclaration -> "fn ${name ?: "???"}()"
+	is ZigGlobalFnPrototype -> "fn ${name ?: "???"}()"
 	is ZigGlobalVarDeclaration -> "${if (varDecl.isConst) "const" else "var"} ${varDecl.name}"
 	is ZigGlobalUsingNamespace -> "usingnamespace ${expr?.text ?: "???"}"
 	else -> text

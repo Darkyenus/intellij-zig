@@ -164,6 +164,8 @@ private topLevelDecl ::= ( // TopLevelDecl
     )
 
 globalFnPrototype ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple? | INLINE_KEYWORD | NOINLINE_KEYWORD)? fnProto SEMICOLON {
+    mixin='org.ziglang.psi.impl.ZigFnPrototypeMixin'
+    implements=['org.ziglang.psi.impl.ZigFnPrototypeMixinI']
     methods=[
         functionPrototype="fnProto"
         extern="stringLiteralSimple"
@@ -172,6 +174,7 @@ globalFnPrototype ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLitera
 }
 globalFnDeclaration ::= PUB_KEYWORD? (EXPORT_KEYWORD | EXTERN_KEYWORD stringLiteralSimple? | INLINE_KEYWORD)? fnProto block {
     mixin='org.ziglang.psi.impl.ZigFnDeclarationMixin'
+    implements=['org.ziglang.psi.impl.ZigFnDeclarationMixinI']
     methods=[
         functionPrototype="fnProto"
         extern="stringLiteralSimple"
@@ -190,9 +193,8 @@ globalUsingNamespace ::= PUB_KEYWORD? USINGNAMESPACE_KEYWORD expr SEMICOLON {
 }
 
 fnProto ::= FN_KEYWORD symbol? LPAREN paramDeclList RPAREN byteAlign? linkSection? callConv? EXCLAMATIONMARK? (ANYTYPE_KEYWORD | typeExpr) {
-    implements=['com.intellij.psi.PsiNameIdentifierOwner']
-    mixin='org.ziglang.psi.impl.TrivialDeclaration'
     pin = "FN_KEYWORD"
+    methods=[functionName="symbol"]
     name = "Function Type"
 }
 private paramDeclList ::= (paramDecl COMMA)* paramDecl? {
@@ -200,8 +202,9 @@ private paramDeclList ::= (paramDecl COMMA)* paramDecl? {
 }
 
 varDecl ::= (CONST_KEYWORD | VAR_KEYWORD) symbol (COLON typeExpr)? byteAlign? linkSection? (EQUAL expr)? SEMICOLON {
-	implements=['com.intellij.psi.PsiNameIdentifierOwner'; 'org.ziglang.psi.impl.IZigVariableDeclaration']
 	mixin='org.ziglang.psi.impl.ZigVariableDeclarationMixin'
+	implements=['org.ziglang.psi.impl.ZigVariableDeclarationMixinI']
+	methods=[variableName="symbol"]
 	name = "Variable Declaration"
 	pin = 1
 }
@@ -371,9 +374,14 @@ errorUnionExpr ::= suffixExpr (EXCLAMATIONMARK typeExpr)? {
     name = "Error Union Expression"
 }
 
-suffixExpr ::=
-      ASYNC_KEYWORD primaryTypeExpr suffixOp* fnCallArguments
-    | primaryTypeExpr (suffixOp | fnCallArguments)* {
+suffixExpr ::= ASYNC_KEYWORD? primaryTypeExpr (suffixOp | fnCallArguments)* {
+    // Actual BNF is:
+    //   ASYNC_KEYWORD primaryTypeExpr suffixOp* fnCallArguments
+    // | primaryTypeExpr (suffixOp | fnCallArguments)*
+    // But parsing is more lenient and this is checked later.
+    // TODO Actually check that later and verify that this is a safe transformation.
+    mixin='org.ziglang.psi.impl.ZigSuffixExprMixin'
+    implements=['org.ziglang.psi.impl.ZigSuffixExprMixinI']
     name = "Suffix Expression"
 }
 
@@ -382,18 +390,18 @@ primaryTypeExpr ::=
       primaryBuiltinExpr
     | primaryCharExpr
     | containerDecl
-    | DOT symbol
-    | DOT initList
+    | primaryEnumReferenceExpr
+    | primaryAnonymousStructExpr
     | errorSetDecl
     | primaryFloatExpr
     | fnProto
     | groupedExpr
     | labeledTypeExpr
-    | symbol // may represent a variable, a type, maybe even something else
+    | primaryReferenceExpr
     | ifTypeExpr
     | primaryIntExpr
     | COMPTIME_KEYWORD typeExpr
-    | ERROR_KEYWORD DOT symbol
+    | primaryErrorReferenceExpr
     | primaryBoolExpr
     | primaryNullExpr
     | primaryKeywordExpr
@@ -416,6 +424,10 @@ primaryBoolExpr    ::= TRUE_KEYWORD | FALSE_KEYWORD { name = "Boolean Literal" }
 primaryNullExpr    ::= NULL_KEYWORD { name = "Null Literal" }
 primaryCharExpr    ::= CHAR_LITERAL { name = "Character Literal" }
 primaryKeywordExpr ::= UNDEFINED_KEYWORD | UNREACHABLE_KEYWORD | ANYFRAME_KEYWORD { name = "Keyword Literal" }
+primaryReferenceExpr ::= symbol { name = "Reference"; methods = [referencedName="symbol"] }  // may represent a variable, a type, maybe even something else
+primaryEnumReferenceExpr ::= DOT symbol { name = "Implicit Enum Reference"; methods = [referencedEnumName="symbol"] }
+primaryErrorReferenceExpr ::= ERROR_KEYWORD DOT symbol { name = "Error Reference"; methods = [referencedErrorName="symbol"] }
+primaryAnonymousStructExpr ::= DOT initList { name = "Anonymous Struct Literal" }
 
 containerDecl ::= (EXTERN_KEYWORD | PACKED_KEYWORD)? containerDeclAuto {
     name = "Container Declaration"
@@ -495,15 +507,18 @@ private asmClobbersList ::= (stringLiteral COMMA)* stringLiteral? //stringsList
 
 // Helper grammar
 breakLabel ::= COLON symbol {
+    methods = [labelName="symbol"]
     name = "Break Label"
     pin = 1
 }
 
 blockLabel ::= symbol COLON {
+    methods = [labelName="symbol"]
     name = "Block Label"
 }
 
 fieldInit ::= DOT symbol EQUAL expr {
+    methods = [fieldName="symbol"]
     name = "Field Initialization"
     pin = 1
 }
@@ -524,8 +539,9 @@ callConv ::= CALLCONV_KEYWORD LPAREN expr RPAREN {
 }
 
 paramDecl ::= (NOALIAS_KEYWORD | COMPTIME_KEYWORD)? (symbol COLON)? paramType {
-    implements=['com.intellij.psi.PsiNameIdentifierOwner']
 	mixin='org.ziglang.psi.impl.ZigParamDeclarationMixin'
+    implements=['org.ziglang.psi.impl.ZigParamDeclarationMixinI']
+    methods=[parameterName="symbol"]
 	name = "Parameter Declaration"
 }
 
@@ -558,16 +574,19 @@ forPrefix ::= FOR_KEYWORD LPAREN expr RPAREN ptrIndexPayload {
 // Payloads
 payload ::= PIPE symbol PIPE {
     name = "Payload"
+    methods = [payloadName="symbol"]
     pin = 1
 }
 
 ptrPayload ::= PIPE ASTERISK? symbol PIPE {
     name = "Pointer Payload"
+    methods = [payloadName="symbol"]
     pin = 1
 }
 
 ptrIndexPayload ::= PIPE ASTERISK? symbol (COMMA symbol)? PIPE {
     name = "Pointer Index Payload"
+    methods = [payloadName="symbol[0]"; payloadIndexName="symbol[1]"]
     pin = 1
 }
 
@@ -679,6 +698,7 @@ suffixOp ::= LBRACKET expr (DOT2 expr?)? RBRACKET
            | DOT symbol
            | DOTASTERISK
            | DOTQUESTIONMARK {
+    methods = [fieldName="symbol"; beginIndex="expr[0]"; endIndex="expr[1]"]
     name = "Suffix Operator"
 }
 
@@ -721,8 +741,7 @@ stringLiteral ::= stringLiteralSimple | LINE_STRING {
 }
 
 symbol ::= IDENTIFIER {
-    extends=expr
-    implements=['org.ziglang.psi.impl.IZigSymbol']
+    implements=['org.ziglang.psi.impl.ZigSymbolMixinI']
     mixin='org.ziglang.psi.impl.ZigSymbolMixin'
     name = "Identifier"
 }

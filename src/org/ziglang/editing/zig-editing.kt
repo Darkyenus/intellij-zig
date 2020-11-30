@@ -29,7 +29,6 @@ import org.ziglang.newZigLexer
 import org.ziglang.psi.ZigBlock
 import org.ziglang.psi.ZigBlockExpr
 import org.ziglang.psi.ZigErrorSetDecl
-import org.ziglang.psi.ZigFnProto
 import org.ziglang.psi.ZigGlobalFnDeclaration
 import org.ziglang.psi.ZigGlobalFnPrototype
 import org.ziglang.psi.ZigGlobalVarDeclaration
@@ -110,14 +109,12 @@ fun cutText(it: String, textMax: Int) = if (it.length <= textMax) it else "${it.
 
 class ZigBreadcrumbsProvider : BreadcrumbsProvider {
 
-	private fun ZigFnProto.text() = name?.let { "$it()" }
-
 	override fun getLanguages() = arrayOf(ZigLanguage)
 
 	override fun getElementInfo(element: PsiElement): String {
 		return cutText(when (element) {
-			is ZigGlobalFnDeclaration -> element.functionPrototype.text()
-			is ZigGlobalFnPrototype -> element.functionPrototype.text()
+			is ZigGlobalFnDeclaration -> (element.name ?: "???") + "()"
+			is ZigGlobalFnPrototype -> (element.name ?: "???") + "()"
 			is ZigTestDecl -> element.testName?.text ?: "???"
 			is ZigTopLevelComptime -> "comptime"
 			is ZigBlock -> element.firstChild.text

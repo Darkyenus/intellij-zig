@@ -41,10 +41,6 @@ class ZigProjectGeneratorPeerImpl : ZigProjectGeneratorPeer() {
 		executablePath.comboBox.addItemListener(listener)
 	}
 
-	@Suppress("OverridingDeprecatedMember")
-	override fun addSettingsStateListener(
-			@Suppress("DEPRECATION") listener: com.intellij.platform.WebProjectGenerator.SettingsStateListener) = Unit
-
 	override fun addSettingsListener(listener: ProjectGeneratorPeer.SettingsListener) {
 		listeners += listener
 	}

@@ -22,7 +22,13 @@ val DefaultGrammarKitDependencies = listOf(
 				DependencyExclusion(group = "org.jetbrains.plugins", name = "idea"),
 				DependencyExclusion(group = "org.jetbrains.plugins", name = "ant")
 		)),
-		dependency("com.github.JetBrains", "Grammar-Kit", "2020.1" /* 2020.3 is broken */, exclusions = listOf(
+		/*
+		2020.3 is broken
+		2020.3.1 "soft" requires new(er) IDE version, otherwise it spams "IllegalArgumentException while reading com.intellij.extapi.psi.ASTWrapperPsiElement"
+		this is caused by ASM version mismatch, exception is thrown in org.jetbrains.org.objectweb.asm.ClassVisitor.
+		However, it seems to be harmless, just spammy.
+		 */
+		dependency("com.github.JetBrains", "Grammar-Kit", "2020.1", exclusions = listOf(
 				DependencyExclusion(group = "org.jetbrains.plugins", name = "idea"),
 				DependencyExclusion(group = "org.jetbrains.plugins", name = "ant")
 		))
