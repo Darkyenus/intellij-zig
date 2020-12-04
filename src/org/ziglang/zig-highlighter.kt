@@ -171,7 +171,7 @@ object ZigSyntaxHighlighter : SyntaxHighlighter {
 
 	override fun getTokenHighlights(tokenType: IElementType?): Array<TextAttributesKey> = when (tokenType) {
 		ZigTypes.IDENTIFIER -> SYMBOL_KEY
-		ZigTokenType.LINE_COMMENT -> LINE_COMMENT_KEY
+		ZigTypes.LINE_COMMENT -> LINE_COMMENT_KEY
 		ZigTypes.SEMICOLON -> SEMICOLON_KEY
 		ZigTypes.STRING_LITERAL_SINGLE, ZigTypes.LINE_STRING -> STRING_KEY
 		ZigTypes.INTEGER_LITERAL,

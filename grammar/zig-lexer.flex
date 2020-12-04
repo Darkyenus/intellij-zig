@@ -63,7 +63,7 @@ INVALID_WHITESPACE = [\s\f\r\t]+
 
 %%
 
-{LINE_COMMENT}       { return ZigTokenType.LINE_COMMENT; }
+{LINE_COMMENT}       { return ZigTypes.LINE_COMMENT; }
 {WHITESPACE}         { return TokenType.WHITE_SPACE; }
 {INVALID_WHITESPACE} { return TokenType.BAD_CHARACTER; } // Is this distinction even necessary?
 

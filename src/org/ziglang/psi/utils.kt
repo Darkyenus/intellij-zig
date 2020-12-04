@@ -3,8 +3,10 @@ package org.ziglang.psi
 import com.intellij.openapi.progress.ProgressIndicatorProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.ResolveState
+import com.intellij.psi.StubBasedPsiElement
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.tree.IElementType
+import com.intellij.psi.util.PsiTreeUtil
 
 fun treeWalkUp(
 		processor: PsiScopeProcessor,
@@ -46,3 +48,6 @@ inline fun <reified Psi : PsiElement> PsiElement.prevSiblingIgnoring(vararg type
 		else localNext as? Psi
 	}
 }
+
+val PsiElement.hasNoError
+	get() = (this as? StubBasedPsiElement<*>)?.stub != null || !PsiTreeUtil.hasErrorElements(this)

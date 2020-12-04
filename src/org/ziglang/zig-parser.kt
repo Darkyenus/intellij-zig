@@ -10,6 +10,7 @@ import com.intellij.psi.FileViewProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFileFactory
+import com.intellij.psi.TokenType
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.IFileElementType
 import com.intellij.psi.tree.TokenSet
@@ -44,10 +45,12 @@ class ZigParserDefinition : ParserDefinition {
 
 class ZigTokenType(debugName: String) : IElementType(debugName, ZigLanguage) {
 	companion object TokenHolder {
-		@JvmField val LINE_COMMENT = ZigTokenType("comment")
-		@JvmField val COMMENTS = TokenSet.create(LINE_COMMENT)
+		@JvmField val COMMENTS = TokenSet.create(ZigTypes.LINE_COMMENT)
 		@JvmField val STRINGS = TokenSet.create(ZigTypes.STRING_LITERAL_SINGLE, ZigTypes.LINE_STRING)
 		@JvmField val IDENTIFIERS = TokenSet.create(ZigTypes.IDENTIFIER, ZigTypes.SYMBOL)
+
+		/** Token types which have no semantic meaning. */
+		@JvmField val IGNORABLE = TokenSet.create(ZigTypes.LINE_COMMENT, TokenType.WHITE_SPACE, TokenType.BAD_CHARACTER)
 
 		fun fromText(string: String, project: Project): PsiElement = PsiFileFactory
 				.getInstance(project)

@@ -44,6 +44,8 @@ val zigPlugin by project(Archetypes.JavaKotlinProject, IntelliJPluginLayer) {
 	IntelliJ.intellijPluginXmlPatches add { pluginXmlDescriptionPatch(path("build/description.html")) }
 	IntelliJ.intellijPluginXmlPatches add { pluginXmlChangeNotesPatch(path("build/change-notes.html")) }
 
+	Keys.runOptions add { "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005" }
+
 	Keys.automaticKotlinStdlib set { false }
 	Keys.kotlinVersion set { KotlinCompilerVersion.Version1_3_72 }
 }

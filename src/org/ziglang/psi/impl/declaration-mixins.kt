@@ -4,8 +4,6 @@ import com.intellij.extapi.psi.ASTWrapperPsiElement
 import com.intellij.lang.ASTNode
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNameIdentifierOwner
-import com.intellij.psi.ResolveState
-import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.PsiTreeUtil
 import org.ziglang.ZigTokenType
 import org.ziglang.psi.ZigGlobalFnDeclaration
@@ -15,19 +13,28 @@ import org.ziglang.psi.ZigSymbol
 import org.ziglang.psi.ZigTypes
 import org.ziglang.psi.ZigVarDecl
 
+/** Something that serves as a declaration, with a name. */
+interface ZigDeclaration : ZigDeclarationHolder, PsiNameIdentifierOwner {
+
+	override fun declaration(): ZigDeclaration = this
+
+	override fun getNameIdentifier():ZigSymbol?
+}
+
+/** An element which, while not declaration itself, serves as one. (For example wraps it with modifiers.) */
+interface ZigDeclarationHolder : PsiElement {
+	/** Get the declaration that this holder holds. */
+	fun declaration():ZigDeclaration?
+}
+
 /** Base class for all named declarations. */
-abstract class ZigAbstractDeclaration(node: ASTNode) : ASTWrapperPsiElement(node), PsiNameIdentifierOwner {
+abstract class ZigAbstractDeclaration(node: ASTNode) : ASTWrapperPsiElement(node), ZigDeclaration {
 
 	override fun getNameIdentifier():ZigSymbol? = PsiTreeUtil.findChildOfType(this, ZigSymbol::class.java)
 
 	override fun setName(name: String) = also { nameIdentifier?.replace(ZigTokenType.fromText(name, project)) }
 
 	override fun getName() = nameIdentifier?.text
-
-	override fun processDeclarations(
-			processor: PsiScopeProcessor, substitutor: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean {
-		return nameIdentifier?.processDeclarations(processor, substitutor, lastParent, place) != false
-	}
 }
 
 /** Variable declaration base. */
@@ -52,11 +59,6 @@ interface ZigParamDeclarationMixinI : PsiNameIdentifierOwner
 abstract class ZigFnDeclarationMixin(node: ASTNode) : ZigAbstractDeclaration(node), ZigGlobalFnDeclaration, ZigFnDeclarationMixinI {
 
 	override fun getNameIdentifier(): ZigSymbol? = functionPrototype.functionName
-
-	override fun processDeclarations(processor: PsiScopeProcessor, substitutor: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean {
-		return (functionPrototype.paramDeclList.all { it.processDeclarations(processor, substitutor, lastParent, place) }
-				&& super.processDeclarations(processor, substitutor, lastParent, place))
-	}
 }
 interface ZigFnDeclarationMixinI : PsiNameIdentifierOwner
 

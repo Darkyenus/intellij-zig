@@ -1,20 +1,20 @@
 package org.ziglang.psi
 
 import com.intellij.codeInsight.lookup.LookupElementBuilder
-import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementResolveResult
 import com.intellij.psi.PsiPolyVariantReference
 import com.intellij.psi.PsiReference
 import com.intellij.psi.ResolveResult
-import com.intellij.psi.ResolveState
-import com.intellij.psi.StubBasedPsiElement
 import com.intellij.psi.impl.source.resolve.ResolveCache
-import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.PsiTreeUtil
-import icons.ZigIcons
-import javax.swing.Icon
+import com.intellij.psi.util.elementType
+import com.intellij.util.ArrayUtilRt
+import org.ziglang.ZigTokenType.TokenHolder.IGNORABLE
+import org.ziglang.psi.impl.ZigDeclaration
+import org.ziglang.psi.impl.ZigDeclarationHolder
+import org.ziglang.psi.impl.ZigSymbolType
 
 /**
  * A base for references to anything.
@@ -25,7 +25,7 @@ abstract class AbstractZigReference(protected val origin: ZigSymbol) : PsiRefere
 	protected var referenceTo: PsiElement? = null
 
 	//region Origin info
-	override fun getElement(): PsiElement = origin
+	override fun getElement(): ZigSymbol = origin
 
 	override fun getRangeInElement(): TextRange = range
 
@@ -34,6 +34,19 @@ abstract class AbstractZigReference(protected val origin: ZigSymbol) : PsiRefere
 
 	//region Resolution
 	override fun isSoft(): Boolean = false
+
+	override fun resolve(): PsiElement? {
+		referenceTo?.let { return it }
+		val ref = doResolve()
+		referenceTo = ref
+		return ref
+	}
+
+	/**
+	 * @return [ZigSymbol] because only that generates references
+	 */
+	protected open fun doResolve(): ZigSymbol? = null
+
 	//endregion
 
 	//region Modification
@@ -47,7 +60,7 @@ abstract class AbstractZigReference(protected val origin: ZigSymbol) : PsiRefere
 	}
 
 	override fun isReferenceTo(element: PsiElement): Boolean {
-		return resolve() == element
+		return origin.manager.areElementsEquivalent(resolve(), element)
 	}
 	//endregion
 
@@ -65,12 +78,45 @@ abstract class AbstractZigReference(protected val origin: ZigSymbol) : PsiRefere
 /** A reference to a break label. */
 class ZigLabelReference(symbol: ZigSymbol) : AbstractZigReference(symbol) {
 
-	override fun resolve(): PsiElement? {
-		TODO("not implemented")
+	private inline fun <T : Any> walkVisibleLabelDeclarations(check: (ZigSymbol) -> T?):T? {
+		// Looking for the label declaration, which will be a direct first child of some of our parents
+		var container = origin.parent
+		while (container != null) {
+			var child = container.firstChild
+			childSearch@while (child != null) {
+				val type = child.elementType
+				if (type != null && !IGNORABLE.contains(type)) {
+					if (child is ZigBlockLabel) {
+						val result = check(child.labelName)
+						if (result != null) {
+							return result
+						}
+					}
+					break@childSearch
+				}
+				child = child.nextSibling
+			}
+			container = container.parent
+		}
+		return null
 	}
 
-	override fun getVariants(): Array<Any> {
-		return super.getVariants()
+	override fun doResolve(): ZigSymbol? {
+		val labelName = origin.name ?: return null
+		return walkVisibleLabelDeclarations { label ->
+			if (label.textMatches(labelName)) {
+				label
+			} else null
+		}
+	}
+
+	override fun getVariants(): Array<PsiElement> {
+		val result = ArrayList<PsiElement>()
+		walkVisibleLabelDeclarations { label ->
+			result.add(label)
+			null
+		}
+		return result.toTypedArray()
 	}
 }
 
@@ -91,6 +137,8 @@ class ZigErrorReference(symbol: ZigSymbol) : AbstractZigReference(symbol), PsiPo
 	override fun isSoft(): Boolean = true // Error serves as both declaration and reference, so it is not a problem if it does not resolve to anything else
 
 	override fun resolve(): PsiElement? {
+		referenceTo?.let { return it }
+
 		val multiResolve = multiResolve(false)
 		var bestBet:PsiElement? = null
 		for (result in multiResolve) {
@@ -104,128 +152,137 @@ class ZigErrorReference(symbol: ZigSymbol) : AbstractZigReference(symbol), PsiPo
 		return bestBet
 	}
 
-	override fun multiResolve(incompleteCode: Boolean): Array<ResolveResult> {
-		// TODO(jp): Walk this file and all referenced files to find all error declarations of the same name
-		TODO("not implemented")
+	override fun multiResolve(incompleteCode: Boolean): Array<ResolveResult> {// TODO(jp): Test
+		referenceTo = null
+		val errorName = origin.name ?: return ResolveResult.EMPTY_ARRAY
+		val file = element.containingFile ?: return ResolveResult.EMPTY_ARRAY
+		val result = ArrayList<ResolveResult>()
+		PsiTreeUtil.processElements(file) { element ->
+			if (element is ZigPrimaryErrorReferenceExpr) {
+				val symbol = element.referencedErrorName
+				if (symbol.textMatches(errorName)) {
+					result.add(PsiElementResolveResult(symbol, element.hasNoError))
+				}
+			} else if (element is ZigErrorSetDecl) {
+				for (symbol in element.symbolList) {
+					if (symbol.textMatches(errorName)) {
+						result.add(PsiElementResolveResult(symbol, symbol.hasNoError))
+					}
+				}
+			}// TODO(jp): When encountering a file import, go there as well?
+			false
+		}
+		return result.toTypedArray()
+	}
+
+	override fun isReferenceTo(element: PsiElement): Boolean {
+		val errorName = origin.name ?: return false
+		if (element !is ZigSymbol) return false
+		val parent = element.parent ?: return false
+		if (parent !is ZigPrimaryErrorReferenceExpr && parent !is ZigErrorSetDecl) return false
+		return element.textMatches(errorName)
+	}
+
+	override fun getVariants(): Array<Any> {
+		val file = element.containingFile ?: return ArrayUtilRt.EMPTY_OBJECT_ARRAY
+		val result = ArrayList<ResolveResult>()
+		PsiTreeUtil.processElements(file) { element ->
+			if (element is ZigPrimaryErrorReferenceExpr) {
+				result.add(PsiElementResolveResult(element, element.hasNoError))
+			} else if (element is ZigErrorSetDecl) {
+				for (symbol in element.symbolList) {
+					result.add(PsiElementResolveResult(symbol, symbol.hasNoError))
+				}
+			}// TODO(jp): When encountering a file import, go there as well?
+			false
+		}
+		return result.toTypedArray()
 	}
 }
 
 /**
  * A reference to a value (function, variable, parameter, type, error, etc.).
  */
-class ZigExprReference (
+class ZigExprReference(
 		origin: ZigSymbol,
 		/** A container whose child is being referenced */
-		private val container:ZigTypeResolvable? = null
+		internal val container: ZigTypeResolvable? = null
 ) : AbstractZigReference(origin) {
 
-	override fun resolve(): PsiElement? {
+	override fun doResolve(): ZigSymbol? {
 		val origin = origin
 		val project = origin.project
 		if (!origin.isValid || project.isDisposed) return null
-		return ResolveCache.getInstance(project).resolveWithCaching(this, symbolResolver, true, false)
-	}
-
-	private companion object ResolverHolder {
-		private val symbolResolver = ResolveCache.AbstractResolver<ZigExprReference, PsiElement> { ref, incompleteCode ->
-			val processor = SymbolResolveProcessor(ref, incompleteCode)
-			val file = ref.element.containingFile ?: return@AbstractResolver null
-			treeWalkUp(processor, ref.element, file)
-			return@AbstractResolver processor.candidateSet.firstOrNull()?.element
-		}
+		return ResolveCache.getInstance(project).resolveWithCaching(this, ExpressionReferenceResolver, false, false)
 	}
 
 	override fun getVariants(): Array<Any> {
-		val variantsProcessor = CompletionProcessor(this, true)
-		treeWalkUp(variantsProcessor, element, element.containingFile)
-		return variantsProcessor.candidateSet.toTypedArray()
-	}
-}
+		val candidateSet = ArrayList<LookupElementBuilder>(40)
+		if (container == null) {
+			walkVisibleDeclarations(origin) { declaration ->
+				val declName = declaration.name
+				val nameIdentifier = declaration.nameIdentifier
+				val symbolType = nameIdentifier?.symbolType
 
-
-abstract class ResolveProcessor<ResolveResult>(private val place: PsiElement) : PsiScopeProcessor {
-	abstract val candidateSet: ArrayList<ResolveResult>
-	override fun handleEvent(event: PsiScopeProcessor.Event, o: Any?) = Unit
-	override fun <T : Any?> getHint(hintKey: Key<T>): T? = null
-	protected val PsiElement.hasNoError get() = (this as? StubBasedPsiElement<*>)?.stub != null || !PsiTreeUtil.hasErrorElements(this)
-	fun isInScope(element: PsiElement) = when {
-		element !is ZigSymbol -> false
-		element.isVariableName -> PsiTreeUtil.isAncestor(
-				PsiTreeUtil.getParentOfType(element, ZigBlock::class.java)
-						?: element.parent.parent?.parent, place, true)
-		element.isParameter -> PsiTreeUtil.isAncestor(PsiTreeUtil.getParentOfType(
-				element, ZigGlobalFnDeclaration::class.java), place, true)
-		element.isFunctionName -> PsiTreeUtil.isAncestor(PsiTreeUtil.getParentOfType(
-				element, ZigGlobalFnDeclaration::class.java)?.parent, place, true)
-		else -> false
-	}
-}
-
-class SymbolResolveProcessor(
-		@JvmField protected val name: String,
-		place: PsiElement,
-		private val incompleteCode: Boolean) :
-		ResolveProcessor<PsiElementResolveResult>(place) {
-
-	constructor(ref: ZigExprReference, incompleteCode: Boolean) : this(ref.canonicalText, ref.element, incompleteCode)
-
-	override val candidateSet = ArrayList<PsiElementResolveResult>(3)
-
-	protected open fun accessible(element: PsiElement) = name == element.text && isInScope(element)
-
-	override fun execute(element: PsiElement, resolveState: ResolveState): Boolean {
-		return when {
-			candidateSet.isNotEmpty() -> false
-			element is ZigSymbol -> {
-				val accessible = accessible(element)
-				if (accessible)
-					candidateSet += PsiElementResolveResult(element, element.hasNoError)
-				!accessible
-			}
-			else -> true
-		}
-	}
-}
-
-class CompletionProcessor(place: PsiElement, private val incompleteCode: Boolean) :
-		ResolveProcessor<LookupElementBuilder>(place) {
-
-	constructor(ref: ZigExprReference, incompleteCode: Boolean) : this(ref.element, incompleteCode)
-
-	override val candidateSet = ArrayList<LookupElementBuilder>(20)
-
-	override fun execute(element: PsiElement, resolveState: ResolveState): Boolean {
-		if (element is ZigSymbol) {
-			val icon: Icon
-			val value: String
-			val tail: String
-			val type: String
-
-			when {
-				element.isFunctionName -> {
-					icon = ZigIcons.ZIG_FUN
-					value = element.text
-					tail = "()"
-					type = ""
+				if (declName == null || symbolType == null) {
+					return@walkVisibleDeclarations null
 				}
-				element.isVariableName || element.isParameter -> {
-					icon = ZigIcons.ZIG_VAR
-					value = element.text
-					tail = ""
-					type = ""
-				}
-				else -> return true
-			}
-			if (element.hasNoError && isInScope(element)) {
-				candidateSet += LookupElementBuilder
-						.create(value)
-						.withIcon(icon)
+
+				candidateSet.add(LookupElementBuilder
+						.create(nameIdentifier)
+						.withIcon(symbolType.icon)
 						// tail text, it will not be completed by Enter Key press
-						.withTailText(tail, true)
+						.withTailText(if (symbolType == ZigSymbolType.FnDeclaration) "()" else "", true)
 						// the type of return value, show at right of popup
-						.withTypeText(type, true)
+						.withTypeText("" /*TODO*/, true))
+				null
+			}
+		} else {
+			//TODO
+			return ArrayUtilRt.EMPTY_OBJECT_ARRAY
+		}
+
+		return candidateSet.toTypedArray()
+	}
+}
+
+private inline fun <T : Any> walkVisibleDeclarations(from:PsiElement, visit:(ZigDeclaration) -> T?):T? {
+	var at = from
+	do {
+		val parent = at.parent ?: break
+		if (parent is ZigContainerMembers) {
+			// A top level container, we must walk the whole thing
+			var child = parent.firstChild
+			childSearch@while (child != null) {
+				if (child !== at) {
+					(child as? ZigDeclarationHolder)?.declaration()?.let(visit)?.let { return it }
+				}
+				child = child.nextSibling
+			}
+		} else {
+			// Statement-level container, walk only previous siblings
+			while (true) {
+				at = at.prevSibling ?: break
+				(at as? ZigDeclarationHolder)?.declaration()?.let(visit)?.let { return it }
 			}
 		}
-		return true
+		at = parent
+	} while (true)
+	return null
+}
+
+private val ExpressionReferenceResolver = ResolveCache.AbstractResolver<ZigExprReference, ZigSymbol> { ref, _ ->
+	val container = ref.container
+	val name = ref.element.name ?: return@AbstractResolver null
+	if (container == null) {
+		walkVisibleDeclarations(ref.element) { declaration ->
+			val symbol = declaration.nameIdentifier
+			if (symbol != null && symbol.textMatches(name)) {
+				symbol
+			} else null
+		}
+	} else {
+		//TODO
+		null
 	}
 }
